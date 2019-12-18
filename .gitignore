@@ -339,3 +339,6 @@ installed*
 compiled/
 python/flowcat.egg-info/
 .Rproj.user
+
+docs/_build
+java-package/brainflow/target
