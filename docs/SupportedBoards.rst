@@ -31,7 +31,7 @@ OpenBCI Cyton
 
 .. image:: https://farm5.staticflickr.com/4817/32567183898_10a4b56659.jpg
 
-`Cyton geting started guide from OpenBCI <https://docs.openbci.com/Tutorials/00-Tutorials>`_.
+`Cyton geting started guide from OpenBCI <https://docs.openbci.com/docs/01GettingStarted/01-Boards/CytonGS>`_.
 
 To choose this board in BoardShim class please specify:
 
@@ -56,7 +56,7 @@ OpenBCI Ganglion
 
 .. image:: https://live.staticflickr.com/65535/48288408326_7f078cd2eb.jpg
 
-`Ganglion geting started guide from OpenBCI <https://docs.openbci.com/Tutorials/00-Tutorials>`_.
+`Ganglion geting started guide from OpenBCI <https://docs.openbci.com/docs/01GettingStarted/01-Boards/CytonGS>`_.
 
 prepare_session args to select this board:
 
@@ -89,7 +89,7 @@ OpenBCI Cyton Daisy
 
 .. image:: https://live.staticflickr.com/65535/48288597712_7ba142797e.jpg
 
-`Cyton Daisy geting started guide from OpenBCI <https://docs.openbci.com/Tutorials/00-Tutorials>`_.
+`Cyton Daisy geting started guide from OpenBCI <https://docs.openbci.com/docs/01GettingStarted/01-Boards/DaisyGS>`_.
 
 To choose this board in BoardShim class please specify:
 
