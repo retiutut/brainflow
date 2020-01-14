@@ -56,7 +56,7 @@ OpenBCI Ganglion
 
 .. image:: https://live.staticflickr.com/65535/48288408326_7f078cd2eb.jpg
 
-`Ganglion geting started guide from OpenBCI <https://docs.openbci.com/docs/01GettingStarted/01-Boards/CytonGS>`_.
+`Ganglion geting started guide from OpenBCI <https://docs.openbci.com/docs/01GettingStarted/01-Boards/GanglionGS>`_.
 
 prepare_session args to select this board:
 
