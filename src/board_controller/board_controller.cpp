@@ -20,6 +20,7 @@
 #include "ganglion.h"
 #include "ganglion_wifi.h"
 #include "novaxr.h"
+#include "streaming_board.h"
 #include "synthetic_board.h"
 
 #include "json.hpp"
@@ -39,13 +40,6 @@ static int string_to_brainflow_input_params (
 
 int prepare_session (int board_id, char *json_brainflow_input_params)
 {
-
-#ifndef _WIN32
-    // temp stub for ganglion on linux and macos
-    if (board_id == GANGLION_BOARD)
-        return UNSUPPORTED_BOARD_ERROR;
-#endif
-
     std::lock_guard<std::mutex> lock (mutex);
 
     Board::board_logger->info ("incomming json: {}", json_brainflow_input_params);
@@ -61,20 +55,23 @@ int prepare_session (int board_id, char *json_brainflow_input_params)
     {
         Board::board_logger->error (
             "Board with id {} and the same config already exists", board_id);
-        return PORT_ALREADY_OPEN_ERROR;
+        return ANOTHER_BOARD_IS_CREATED_ERROR;
     }
 
     std::shared_ptr<Board> board = NULL;
     switch (board_id)
     {
+        case STREAMING_BOARD:
+            board = std::shared_ptr<Board> (new StreamingBoard (params));
+            break;
+        case SYNTHETIC_BOARD:
+            board = std::shared_ptr<Board> (new SyntheticBoard (params));
+            break;
         case CYTON_BOARD:
             board = std::shared_ptr<Board> (new Cyton (params));
             break;
         case GANGLION_BOARD:
             board = std::shared_ptr<Board> (new Ganglion (params));
-            break;
-        case SYNTHETIC_BOARD:
-            board = std::shared_ptr<Board> (new SyntheticBoard (params));
             break;
         case CYTON_DAISY_BOARD:
             board = std::shared_ptr<Board> (new CytonDaisy (params));
@@ -103,7 +100,8 @@ int prepare_session (int board_id, char *json_brainflow_input_params)
     return res;
 }
 
-int start_stream (int buffer_size, int board_id, char *json_brainflow_input_params)
+int start_stream (
+    int buffer_size, char *streamer_params, int board_id, char *json_brainflow_input_params)
 {
     std::lock_guard<std::mutex> lock (mutex);
 
@@ -121,7 +119,7 @@ int start_stream (int buffer_size, int board_id, char *json_brainflow_input_para
         return res;
     }
     auto board_it = boards.find (key);
-    return board_it->second->start_stream (buffer_size);
+    return board_it->second->start_stream (buffer_size, streamer_params);
 }
 
 int stop_stream (int board_id, char *json_brainflow_input_params)
@@ -237,6 +235,32 @@ int set_log_level (int log_level)
 {
     std::lock_guard<std::mutex> lock (mutex);
     return Board::set_log_level (log_level);
+}
+
+int log_message (int log_level, char *log_message)
+{
+    // its a method for loggging from high level api dont add it to Board class since it should not
+    // be used internally
+    std::lock_guard<std::mutex> lock (mutex);
+    int level;
+    if (log_level < 0)
+    {
+        Board::board_logger->warn ("log level should be >= 0");
+        level = 0;
+    }
+    else if (log_level > 6)
+    {
+        Board::board_logger->warn ("log level should be <= 6");
+        level = 6;
+    }
+    else
+    {
+        level = log_level;
+    }
+
+    Board::board_logger->log (spdlog::level::level_enum (log_level), "{}", log_message);
+
+    return STATUS_OK;
 }
 
 int set_log_file (char *log_file)

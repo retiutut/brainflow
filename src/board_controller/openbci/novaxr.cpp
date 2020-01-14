@@ -6,13 +6,21 @@
 #include "novaxr.h"
 #include "openbci_helpers.h"
 
+#ifndef _WIN32
+#include <errno.h>
+#endif
+
+constexpr int NovaXR::transaction_size;
+constexpr int NovaXR::num_packages;
+constexpr int NovaXR::package_size;
+constexpr int NovaXR::num_channels;
+
 NovaXR::NovaXR (struct BrainFlowInputParams params) : Board ((int)NOVAXR_BOARD, params)
 {
     this->socket = NULL;
     this->is_streaming = false;
     this->keep_alive = false;
     this->initialized = false;
-    this->num_channels = 25;
     this->state = SYNC_TIMEOUT_ERROR;
 }
 
@@ -29,21 +37,19 @@ int NovaXR::prepare_session ()
         safe_logger (spdlog::level::info, "Session is already prepared");
         return STATUS_OK;
     }
-    if ((params.ip_address.empty ()) || (params.ip_protocol == (int)IpProtocolType::NONE))
+    if (params.ip_address.empty ())
     {
-        safe_logger (spdlog::level::err, "ip address or ip protocol is empty");
+        safe_logger (spdlog::level::info, "use default IP address 192.168.4.1");
+        params.ip_address = "192.168.4.1";
+    }
+    if (params.ip_protocol == (int)IpProtocolType::TCP)
+    {
+        safe_logger (spdlog::level::err, "ip protocol is UDP for novaxr");
         return INVALID_ARGUMENTS_ERROR;
     }
-    if (params.ip_protocol == (int)IpProtocolType::UDP)
-    {
-        socket = new SocketClient (params.ip_address.c_str (), 2390, (int)SocketType::UDP);
-    }
-    else
-    {
-        socket = new SocketClient (params.ip_address.c_str (), 2390, (int)SocketType::TCP);
-    }
-    int res = socket->connect ();
-    if (res != 0)
+    socket = new SocketClient (params.ip_address.c_str (), 2390, (int)SocketType::UDP);
+    int res = socket->connect (NovaXR::transaction_size);
+    if (res != (int)SocketReturnCodes::STATUS_OK)
     {
         safe_logger (spdlog::level::err, "failed to init socket: {}", res);
         return GENERAL_ERROR;
@@ -64,13 +70,21 @@ int NovaXR::config_board (char *config)
     res = socket->send (config, len);
     if (len != res)
     {
+        if (res == -1)
+        {
+#ifdef _WIN32
+            safe_logger (spdlog::level::err, "WSAGetLastError is {}", WSAGetLastError ());
+#else
+            safe_logger (spdlog::level::err, "errno {} message {}", errno, strerror (errno));
+#endif
+        }
         safe_logger (spdlog::level::err, "Failed to config a board");
         return BOARD_WRITE_ERROR;
     }
     return STATUS_OK;
 }
 
-int NovaXR::start_stream (int buffer_size)
+int NovaXR::start_stream (int buffer_size, char *streamer_params)
 {
     if (is_streaming)
     {
@@ -88,19 +102,38 @@ int NovaXR::start_stream (int buffer_size)
         delete db;
         db = NULL;
     }
-
-    // start streaming
-    if (socket->send ("b", 1) != 1)
+    if (streamer)
     {
-        safe_logger (spdlog::level::err, "Failed to send a command to board");
-        return BOARD_WRITE_ERROR;
+        delete streamer;
+        streamer = NULL;
     }
 
-    db = new DataBuffer (num_channels, buffer_size);
+    int res = prepare_streamer (streamer_params);
+    if (res != STATUS_OK)
+    {
+        return res;
+    }
+    db = new DataBuffer (NovaXR::num_channels, buffer_size);
     if (!db->is_ready ())
     {
         safe_logger (spdlog::level::err, "unable to prepare buffer");
         return INVALID_BUFFER_SIZE_ERROR;
+    }
+
+    // start streaming
+    res = socket->send ("b", 1);
+    if (res != 1)
+    {
+        if (res == -1)
+        {
+#ifdef _WIN32
+            safe_logger (spdlog::level::err, "WSAGetLastError is {}", WSAGetLastError ());
+#else
+            safe_logger (spdlog::level::err, "errno {} message {}", errno, strerror (errno));
+#endif
+        }
+        safe_logger (spdlog::level::err, "Failed to send a command to board");
+        return BOARD_WRITE_ERROR;
     }
 
     keep_alive = true;
@@ -131,9 +164,23 @@ int NovaXR::stop_stream ()
         keep_alive = false;
         is_streaming = false;
         streaming_thread.join ();
-        this->state = SYNC_TIMEOUT_ERROR;
-        if (socket->send ("s", 1) != 1)
+        if (streamer)
         {
+            delete streamer;
+            streamer = NULL;
+        }
+        this->state = SYNC_TIMEOUT_ERROR;
+        int res = socket->send ("s", 1);
+        if (res != 1)
+        {
+            if (res == -1)
+            {
+#ifdef _WIN32
+                safe_logger (spdlog::level::err, "WSAGetLastError is {}", WSAGetLastError ());
+#else
+                safe_logger (spdlog::level::err, "errno {} message {}", errno, strerror (errno));
+#endif
+            }
             safe_logger (spdlog::level::err, "Failed to send a command to board");
             return BOARD_WRITE_ERROR;
         }
@@ -168,41 +215,49 @@ void NovaXR::read_thread ()
 {
     /* ------ NovaXR packet format --------
      * Packet Byte [0]:     Packet Number
-     * Packet Byte [1]:     PPG
-     * Packet Byte [2:3]:   EDA
-     * Packet Byte [4:6]:   EEG_FC 0
-     * Packet Byte [7:9]:   EEG_FC 1
-     * Packet Byte [10:12]: EEG_OL 0
-     * Packet Byte [13:15]: EEG_OL 1
-     * Packet Byte [16:18]: EEG_OL 2
-     * Packet Byte [19:21]: EEG_OL 3
-     * Packet Byte [22:24]: EEG_OL 4
-     * Packet Byte [25:27]: EEG_OL 5
-     * Packet Byte [28:30]: EEG_OL 6
-     * Packet Byte [31:33]: EEG_OL 7
-     * Packet Byte [34:36]: EOG 0
-     * Packet Byte [37:39]: EOG 1
-     * Packet Byte [40:42]: EMG 0
-     * Packet Byte [43:45]: EMG 1
-     * Packet Byte [46:48]: EMG 2
-     * Packet Byte [49:51]: EMG 3
-     * Packet Byte [52:53]: AXL X
-     * Packet Byte [54:55]: AXL Y
-     * Packet Byte [56:57]: AXL Z
-     * Packet Byte [58:59]: GYR X
-     * Packet Byte [60:61]: GYR Y
-     * Packet Byte [62:63]: GYR Z
+     * Packet Byte [1:2]:   PPG
+     * Packet Byte [3:4]:   EDA
+     * Packet Byte [5:7]:   EEG_FC 0
+     * Packet Byte [8:10]:  EEG_FC 1
+     * Packet Byte [11:13]: EEG_OL 0
+     * Packet Byte [14:16]: EEG_OL 1
+     * Packet Byte [17:19]: EEG_OL 2
+     * Packet Byte [20:22]: EEG_OL 3
+     * Packet Byte [23:25]: EEG_OL 4
+     * Packet Byte [26:28]: EEG_OL 5
+     * Packet Byte [29:31]: EEG_OL 6
+     * Packet Byte [32:34]: EEG_OL 7
+     * Packet Byte [35:37]: EOG 0
+     * Packet Byte [38:40]: EOG 1
+     * Packet Byte [41:43]: EMG 0
+     * Packet Byte [44:46]: EMG 1
+     * Packet Byte [47:49]: EMG 2
+     * Packet Byte [50:52]: EMG 3
+     * Packet Byte [53]:    Battery Level range: 0-100
+     * Packet Byte [54:55]: Skin Temperature
+     * Packet Byte [56]:    Firmware Error Code
      * Packet Byte [64:71]: Timestamp
+     * ----- Total 72 Bytes ------------
      */
 
+
     int res;
-    unsigned char b[72];
+    unsigned char b[NovaXR::transaction_size];
     while (keep_alive)
     {
-        res = socket->recv (b, 72);
-        if (res != 72)
+        res = socket->recv (b, NovaXR::transaction_size);
+        if (res == -1)
         {
-            safe_logger (spdlog::level::trace, "unable to read 72 bytes, read {}", res);
+#ifdef _WIN32
+            safe_logger (spdlog::level::err, "WSAGetLastError is {}", WSAGetLastError ());
+#else
+            safe_logger (spdlog::level::err, "errno {} message {}", errno, strerror (errno));
+#endif
+        }
+        if (res != NovaXR::transaction_size)
+        {
+            safe_logger (spdlog::level::trace, "unable to read {} bytes, read {}",
+                NovaXR::transaction_size, res);
             continue;
         }
         else
@@ -210,10 +265,8 @@ void NovaXR::read_thread ()
             // inform main thread that everything is ok and first package was received
             if (this->state != STATUS_OK)
             {
-                for (int i = 0; i < 72; i++)
-                {
-                    safe_logger (spdlog::level::trace, "byte {} val {}", i, b[i]);
-                }
+                safe_logger (spdlog::level::info,
+                    "received first package with {} bytes streaming is started", res);
                 {
                     std::lock_guard<std::mutex> lk (this->m);
                     this->state = STATUS_OK;
@@ -223,26 +276,34 @@ void NovaXR::read_thread ()
             }
         }
 
-        double package[25];
-        // package num
-        package[0] = (double)b[0];
-        // eeg and emg
-        for (int i = 4; i < 20; i++)
+        for (int cur_package = 0; cur_package < NovaXR::num_packages; cur_package++)
         {
-            // put them directly after package num in brainflow
-            package[i - 3] = eeg_scale * (double)cast_24bit_to_int32 (b + 4 + 3 * (i - 4));
-        }
-        package[17] = (double)b[1];                               // ppg
-        package[18] = cast_16bit_to_int32 (b + 2);                // eda todo scale?
-        package[19] = accel_scale * cast_16bit_to_int32 (b + 52); // accel x
-        package[20] = accel_scale * cast_16bit_to_int32 (b + 54); // accel y
-        package[21] = accel_scale * cast_16bit_to_int32 (b + 56); // accel z
-        package[22] = cast_16bit_to_int32 (b + 58);               // gyro x scale?
-        package[23] = cast_16bit_to_int32 (b + 60);               // gyro y scale?
-        package[24] = cast_16bit_to_int32 (b + 62);               // gyro z scale?
+            double package[NovaXR::num_channels] = {0.};
+            int offset = cur_package * NovaXR::package_size;
+            // package num
+            package[0] = (double)b[0 + offset];
+            // eeg and emg
+            for (int i = 4; i < 20; i++)
+            {
+                // put them directly after package num in brainflow
+                package[i - 3] =
+                    eeg_scale * (double)cast_24bit_to_int32 (b + offset + 5 + 3 * (i - 4));
+            }
+            int16_t temperature;
+            int16_t ppg;
+            int16_t eda;
+            memcpy (&temperature, b + 54 + offset, 2);
+            memcpy (&ppg, b + 1 + offset, 2);
+            memcpy (&eda, b + 3 + offset, 2);
+            package[17] = ppg;                    // ppg
+            package[18] = eda;                    // eda
+            package[19] = temperature / 100.0;    // temperature
+            package[20] = (double)b[53 + offset]; // battery level
 
-        double timestamp;
-        memcpy (&timestamp, b + 64, 8);
-        db->add_data (timestamp, package);
+            double timestamp;
+            memcpy (&timestamp, b + 64 + offset, 8);
+            streamer->stream_data (package, NovaXR::num_channels, timestamp);
+            db->add_data (timestamp, package);
+        }
     }
 }

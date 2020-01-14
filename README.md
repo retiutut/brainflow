@@ -1,12 +1,23 @@
-# Brainflow
+# BrainFlow
 
-Brainflow is a library intended to obtain, parse and analyze EEG\EMG\ECG data from OpenBCI boards.
+BrainFlow is a library intended to obtain, parse and analyze EEG, EMG, ECG and other kinds of data from biosensors.
 
-Core module of this library is implemented in C\C++ and available for all bindings as a dynamic library. This approach allows to reduce code duplication and simplify maintenance, also it's better than any streaming based solution because using this library you don't need to worry about inter process communication and it's a single dependency.
+#### Advantages of BrainFlow:
 
-This project was forked by OpenBCI from [Andrey1994/brainflow](https://github.com/Andrey1994/brainflow)
+* powerful API with many features to simplify development
+    * Straightforward API for data acquisition
+    * Powerful API for signal filtering, denoising, downsampling...
+    * Development tools like Synthetic board, Streaming board, logging API
+* easy to use
+    * BrainFlow has many bindings, you can choose programming language you like
+    * All programming languages provide the same API, so it's simple to switch
+    * API is uniform for all boards, it makes applications on top of BrainFlow almost board agnostic
+* easy to support and extend
+    * Code to read data and to perform signal processing is implemented only once in C/C++, bindings just call C/C++ methods
+    * Powerful CI/CD system which runs integrations tests for each commit automatically using BrainFlow's Emulator
+    * Simplified process to add new boards and methods
 
-## [BrainFlow Docs, Dev and User guides and other information](https://brainflow.readthedocs.io/en/latest/index.html)
+## [BrainFlow Docs, Dev and User guides and other information](https://brainflow.readthedocs.io)
 
 ## Build status
 Compiled with:
@@ -24,11 +35,10 @@ Compiled with:
 
 ## Brainflow Bindings
 We support bindings for:
-* [python](./python-package)
-* [java](./java-package/brainflow/)
+* [Python](./python-package)
+* [Java](./java-package/brainflow/)
 * [R](./r-package/)
-* [CPP](./cpp-package/)
-* [Matlab](./matlab-package/brainflow/)
+* [C++](./cpp-package/)
 * [C# (Windows only)](./csharp-package/brainflow/)
 
 ## License: 

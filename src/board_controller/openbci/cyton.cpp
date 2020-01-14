@@ -4,8 +4,9 @@
 #include "timestamp.h"
 
 #define START_BYTE 0xA0
-#define END_BYTE 0xC0
-
+#define END_BYTE_STANDARD 0xC0
+#define END_BYTE_ANALOG 0xC1
+#define END_BYTE_MAX 0xC6
 
 void Cyton::read_thread ()
 {
@@ -45,15 +46,13 @@ void Cyton::read_thread ()
             safe_logger (spdlog::level::debug, "unable to read 32 bytes");
             continue;
         }
-        // check end byte
-        if (b[res - 1] != END_BYTE)
+        if ((b[31] < END_BYTE_STANDARD) || (b[31] > END_BYTE_MAX))
         {
-            safe_logger (
-                spdlog::level::warn, "Wrong end byte, found {}, required {}", b[res - 1], END_BYTE);
+            safe_logger (spdlog::level::warn, "Wrong end byte {}", b[31]);
             continue;
         }
 
-        double package[12];
+        double package[22] = {0.};
         // package num
         package[0] = (double)b[0];
         // eeg
@@ -61,11 +60,32 @@ void Cyton::read_thread ()
         {
             package[i + 1] = eeg_scale * cast_24bit_to_int32 (b + 1 + 3 * i);
         }
-        // accel
-        package[9] = accel_scale * cast_16bit_to_int32 (b + 25);
-        package[10] = accel_scale * cast_16bit_to_int32 (b + 27);
-        package[11] = accel_scale * cast_16bit_to_int32 (b + 29);
+        // end byte
+        package[12] = (double)b[31];
+        // place unprocessed bytes for all modes to other_channels
+        package[13] = (double)b[25];
+        package[14] = (double)b[26];
+        package[15] = (double)b[27];
+        package[16] = (double)b[28];
+        package[17] = (double)b[29];
+        package[18] = (double)b[30];
+        // place processed bytes for accel
+        if (b[31] == END_BYTE_STANDARD)
+        {
+            package[9] = accel_scale * cast_16bit_to_int32 (b + 25);
+            package[10] = accel_scale * cast_16bit_to_int32 (b + 27);
+            package[11] = accel_scale * cast_16bit_to_int32 (b + 29);
+        }
+        // place processed bytes for analog
+        if (b[31] == END_BYTE_ANALOG)
+        {
+            package[19] = cast_16bit_to_int32 (b + 25);
+            package[20] = cast_16bit_to_int32 (b + 27);
+            package[21] = cast_16bit_to_int32 (b + 29);
+        }
 
-        db->add_data (get_timestamp (), package);
+        double timestamp = get_timestamp ();
+        db->add_data (timestamp, package);
+        streamer->stream_data (package, 22, timestamp);
     }
 }

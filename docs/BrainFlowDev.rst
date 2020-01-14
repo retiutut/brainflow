@@ -19,23 +19,21 @@ Unfortunately clang-format can not handle naming, so some additional rules are:
 - class names should be in camel case
 - use brackets even for single line if and for statements
 
-We try to keep the same code style for all bindings as well, even if it doesn't match PEP or other standards
-
-For example we add spaces before and after assignment operator to specify default value for method's param and add spaces before brackets
+We try to keep the same code style for all bindings as well, even if it doesn't match PEP or other standards. For example we add spaces before and after assignment operator to specify default value for method's params and add spaces before brackets.
 
 CI and tests
 --------------
 
-If you want to commit to core module of brainflow project please check that all tests are passed, you can enable `Travis CI <https://travis-ci.com/>`_ and `AppVeyour <https://ci.appveyor.com>`_ for your fork of BrainFlow to run tests automatically, or check CI status directly in your PR
+If you want to commit to core module of brainflow project please check that all tests are passed, you can enable `Travis CI <https://travis-ci.com/>`_ and `AppVeyour <https://ci.appveyor.com>`_ for your fork of BrainFlow to run tests automatically, or check CI status directly in your PR.
 
-Also you can run integration tests manually for any board even if you dont have real hardware, see :ref:`brainflow_emulator_link` for details
+Also you can run integration tests manually for any board even if you dont have real hardware, check :ref:`emulator-label` page for details.
 
 Pull Requests
 --------------
 
-Just try to briefly explain a goal of this PR
+Just try to briefly explain a goal of this PR.
 
-Instructions to add new boards to brainflow
+Instructions to add new boards to BrainFlow
 ---------------------------------------------
 
 - add new object creation to board_controller.cpp
@@ -44,6 +42,23 @@ Instructions to add new boards to brainflow
 - add information about your board to brainflow_boards.json
 - add new files to CmakeLists.txt
 
-You've just written Python, Java, C#, R, C++ ... SDKs for your board!
+**You've just written Python, Java, C#, R, C++ ... SDKs for your board! Also now you can use your new board with applications and frameworks which use BrainFlow API.**
 
-To enable automation testing you should develop a simple emulator for your new board and add tests to .travis.yml and appveyour.yml, also make sure that all current tests are passed and feel free to send PR
+To enable automation testing you should develop a simple emulator for your new board and add tests to .travis.yml and appveyour.yml, also make sure that all current tests are passed and feel free to send a PR.
+
+Instructions to build docs locally
+------------------------------------
+
+Don't push changes to Docs without local verification.
+
+- install `pandoc <https://pandoc.org/installing.html>`_
+- optional: install Doxygen, skip it if you dont understand what it is or don't need to publish your local build
+
+Install requirements::
+
+    cd docs
+    python -m pip install -r requirements.txt
+
+Build docs::
+
+    make html

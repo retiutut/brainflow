@@ -14,6 +14,8 @@
 #
 import os
 import sys
+import subprocess
+
 sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'python-package')))
 sys.path.insert(0, os.path.abspath(os.path.join('..', 'python-package', 'brainflow')))
@@ -40,12 +42,63 @@ release = u''
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc'
+    'sphinx.ext.autodoc',
+    'breathe',
+    'sphinxcontrib.ghcontributors',
+    'nbsphinx',
+    'sphinx.ext.mathjax'
 ]
+
+# Breathe and Doxygen setup
+
+breathe_default_project = 'BrainFlowCpp'
+
+def configure_doxyfile(input_dir, output_dir, project):
+    with open('Doxyfile.in', 'r') as file :
+        filedata = file.read()
+
+    filedata = filedata.replace('@DOXYGEN_INPUT_DIR@', input_dir)
+    filedata = filedata.replace('@DOXYGEN_OUTPUT_DIR@', output_dir)
+    filedata = filedata.replace('@DOXYGEN_PROJECT@', project)
+
+    with open('Doxyfile', 'w') as file:
+        file.write(filedata)
+
+# Check if we're running on Read the Docs' servers
+read_the_docs_build = os.environ.get('READTHEDOCS', None) == 'True'
+
+breathe_projects = {}
+
+if read_the_docs_build:
+    # cpp binding
+    input_dir = '../cpp-package/src'
+    output_dir = 'build-cpp'
+    configure_doxyfile(input_dir, output_dir, 'BrainFlowCpp')
+    subprocess.call('doxygen', shell=True)
+    breathe_projects['BrainFlowCpp'] = output_dir + '/xml'
+    # java binding
+    input_dir = '../java-package'
+    output_dir = 'build-java'
+    configure_doxyfile(input_dir, output_dir, 'BrainFlowJava')
+    subprocess.call('doxygen', shell=True)
+    breathe_projects['BrainFlowJava'] = output_dir + '/xml'
+    # c# binding
+    input_dir = '../csharp-package'
+    output_dir = 'build-csharp'
+    configure_doxyfile(input_dir, output_dir, 'BrainFlowCsharp')
+    subprocess.call('doxygen', shell=True)
+    breathe_projects['BrainFlowCsharp'] = output_dir + '/xml'
+    # core api, we dont use it right now but maybe later we will docs for developers too
+    input_dir = '../src'
+    output_dir = 'build-core'
+    configure_doxyfile(input_dir, output_dir, 'BrainFlowCore')
+    subprocess.call('doxygen', shell=True)
+    breathe_projects['BrainFlowCore'] = output_dir + '/xml'
+
 
 # sphinx.ext.autodoc
 autoclass_content = 'both'
-autodoc_default_options = {"members": None}
+autodoc_default_options = {'members': None}
 autodoc_member_order = 'bysource'
 
 
@@ -65,36 +118,61 @@ master_doc = 'index'
 # for a list of supported languages.
 #
 # This is also used if you do content translation via gettext catalogs.
-# Usually you set "language" from the command line for these cases.
+# Usually you set 'language' from the command line for these cases.
 language = None
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = [u'_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = [u'_build', 'Thumbs.db', '.DS_Store', '**.ipynb_checkpoints']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = None
 
+# options for nbsphinx
+html_scaled_image_link = False
+html_sourcelink_suffix = ''
 
+nbsphinx_execute_arguments = [
+    "--InlineBackend.figure_formats={'svg', 'pdf'}",
+    "--InlineBackend.rc={'figure.dpi': 96}",
+]
+nbsphinx_input_prompt = 'In [%s]:'
+nbsphinx_output_prompt = 'Out[%s]:'
+nbsphinx_timeout = 60
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "sphinx_rtd_theme"
+
+import sphinx_rtd_theme
+
+extensions.append('sphinx_rtd_theme')
+html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+html_theme = 'sphinx_rtd_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-# html_theme_options = {}
+html_translator_class = 'guzzle_sphinx_theme.HTMLTranslator'
+html_show_sourcelink = False
+
+html_logo = '_static/brainflow_logo.png'
+
+html_theme_options = {
+    'canonical_url': 'https://brainflow.readthedocs.io/en/latest/',
+    'collapse_navigation': False,
+    'display_version': True,
+    'logo_only': False,
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
+# so a file named 'default.css' will overwrite the builtin 'default.css'.
 html_static_path = ['_static']
-
+html_context = {'css_files': ['_static/custom.css']}
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
 #
@@ -109,7 +187,7 @@ html_static_path = ['_static']
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'BrainFlowdoc'
+htmlhelp_basename = 'BrainFlowDoc'
 
 
 # -- Options for LaTeX output ------------------------------------------------

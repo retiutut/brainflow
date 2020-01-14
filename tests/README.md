@@ -1,29 +1,8 @@
-# Brainflow Tests
+# BrainFlow tests
 
-## Instructions to run tests
+Tests for java and for C# located mostly inside:
 
-You need to install emulator package first
-```
-cd {project_dir}/emulator
-python setup.py install
-```
+* [java-package](../java-package/brainflow/)
+* [Csharp-package](../csharp-package/brainflow/)
 
-### Run Python tests
-```
-cd {project_dir}/python-package
-pip install -e .
-# to test it on Linux machine
-python3 {project_dir}/emulator/brainflow_emulator/cyton_linux.py python3 {project_dir}/tests/python/brainflow_get_data.py
-# to test it on Windows machine
-python3 {project_dir}/emulator/brainflow_emulator/cyton_windows.py python3 {project_dir}/tests/python/brainflow_get_data.py
-```
-
-### Run Java test
-```
-cd {project_dir}\java-package
-# I dont add jar to repo, so you will need to build it
-mvn package
-cd {project_dir}/tests/java
-javac -classpath {project_dir}\java-package\brainflow\target\brainflow-jar-with-dependencies.jar BrainFlowTest.java
-python {project_dir}\emulator\brainflow_emulator\cyton_windows.py java -classpath .;{project_dir}\java-package\brainflow\target\brainflow-jar-with-dependencies.jar BrainFlowTest
-```
+Because for these bindings its much easier.

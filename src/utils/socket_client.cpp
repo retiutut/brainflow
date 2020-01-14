@@ -91,7 +91,7 @@ SocketClient::SocketClient (const char *ip_addr, int port, int socket_type)
     this->socket_type = socket_type;
 }
 
-int SocketClient::connect ()
+int SocketClient::connect (int min_bytes)
 {
     WSADATA wsadata;
     int res = WSAStartup (MAKEWORD (2, 2), &wsadata);
@@ -119,18 +119,23 @@ int SocketClient::connect ()
     }
 
     // ensure that library will not hang in blocking recv/send call
-    DWORD timeout = 3000;
+    DWORD timeout = 5000;
     setsockopt (connect_socket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof (timeout));
     setsockopt (connect_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof (timeout));
     if (socket_type == (int)SocketType::TCP)
     {
         DWORD value = 1;
         setsockopt (connect_socket, IPPROTO_TCP, TCP_NODELAY, (char *)&value, sizeof (value));
+        setsockopt (connect_socket, SOL_SOCKET, SO_KEEPALIVE, (char *)&value, sizeof (value));
         if (::connect (connect_socket, (sockaddr *)&socket_addr, sizeof (socket_addr)) ==
             SOCKET_ERROR)
         {
             return (int)SocketReturnCodes::CONNECT_ERROR;
         }
+        // to simplify parsing code and make it uniform for udp and tcp set min bytes for tcp to
+        // package size
+        setsockopt (
+            connect_socket, SOL_SOCKET, SO_RCVLOWAT, (char *)&min_bytes, sizeof (min_bytes));
     }
 
     return (int)SocketReturnCodes::STATUS_OK;
@@ -261,7 +266,7 @@ SocketClient::SocketClient (const char *ip_addr, int port, int socket_type)
     this->socket_type = socket_type;
 }
 
-int SocketClient::connect ()
+int SocketClient::connect (int min_bytes)
 {
     if (socket_type == (int)SocketType::UDP)
     {
@@ -285,7 +290,7 @@ int SocketClient::connect ()
 
     // ensure that library will not hang in blocking recv/send call
     struct timeval tv;
-    tv.tv_sec = 3;
+    tv.tv_sec = 5;
     tv.tv_usec = 0;
     setsockopt (connect_socket, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof (tv));
     setsockopt (connect_socket, SOL_SOCKET, SO_SNDTIMEO, (const char *)&tv, sizeof (tv));
@@ -294,10 +299,14 @@ int SocketClient::connect ()
     {
         int value = 1;
         setsockopt (connect_socket, IPPROTO_TCP, TCP_NODELAY, &value, sizeof (value));
+        setsockopt (connect_socket, SOL_SOCKET, SO_KEEPALIVE, &value, sizeof (value));
         if (::connect (connect_socket, (sockaddr *)&socket_addr, sizeof (socket_addr)) == -1)
         {
             return (int)SocketReturnCodes::CONNECT_ERROR;
         }
+        // to simplify parsing code and make it uniform for udp and tcp set min bytes for tcp to
+        // package size
+        // setsockopt (connect_socket, SOL_SOCKET, SO_RCVLOWAT, &min_bytes, sizeof (min_bytes));
     }
 
     return (int)SocketReturnCodes::STATUS_OK;

@@ -1,10 +1,11 @@
 import argparse
 import time
-import brainflow
 import numpy as np
 
+import brainflow
 from brainflow.board_shim import BoardShim, BrainFlowInputParams
-from brainflow.data_filter import DataFilter, FilterTypes
+from brainflow.data_filter import DataFilter, FilterTypes, AggOperations
+
 
 def main ():
     parser = argparse.ArgumentParser ()
@@ -15,6 +16,7 @@ def main ():
     parser.add_argument ('--serial-port', type = str, help  = 'serial port', required = False, default = '')
     parser.add_argument ('--mac-address', type = str, help  = 'mac address', required = False, default = '')
     parser.add_argument ('--other-info', type = str, help  = 'other info', required = False, default = '')
+    parser.add_argument ('--streamer-params', type = str, help  = 'other info', required = False, default = '')
     parser.add_argument ('--board-id', type = int, help  = 'board id, check docs to get a list of supported boards', required = True)
     parser.add_argument ('--log', action = 'store_true')
     args = parser.parse_args ()
@@ -35,26 +37,15 @@ def main ():
     board = BoardShim (args.board_id, params)
     board.prepare_session ()
 
-    # disable 2nd channel for cyton use real board to check it, emulator ignores commands
-    if args.board_id == brainflow.board_shim.BoardIds.CYTON_BOARD.value:
-        board.config_board ('x2100000X')
-
-    board.start_stream ()
+    # board.start_stream () # use this for default options
+    board.start_stream (45000, args.streamer_params)
     time.sleep (10)
-    data = board.get_board_data ()
+    # data = board.get_current_board_data (256) # get latest 256 packages or less, doesnt remove them from internal buffer
+    data = board.get_board_data () # get all data and remove it from internal buffer
     board.stop_stream ()
     board.release_session ()
 
-    eeg_channels = BoardShim.get_eeg_channels (args.board_id)
-    for count, channel in enumerate (eeg_channels):
-        if count == 0:
-            DataFilter.perform_bandpass (data[channel], BoardShim.get_sampling_rate (args.board_id), 15.0, 6.0, 4, FilterTypes.BESSEL.value, 0)
-        elif count == 1:
-            DataFilter.perform_bandstop (data[channel], BoardShim.get_sampling_rate (args.board_id), 5.0, 1.0, 3, FilterTypes.BUTTERWORTH.value, 0)
-        elif count == 2:
-            DataFilter.perform_lowpass (data[channel], BoardShim.get_sampling_rate (args.board_id), 9.0, 5, FilterTypes.CHEBYSHEV_TYPE_1.value, 1)
-        elif count == 3:
-            DataFilter.perform_highpass (data[channel], BoardShim.get_sampling_rate (args.board_id), 3.0, 4, FilterTypes.BUTTERWORTH.value, 0)
+    print (data)
 
 
 if __name__ == "__main__":

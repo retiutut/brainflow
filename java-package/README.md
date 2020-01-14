@@ -1,19 +1,20 @@
-# Java
-Java binding for brainflow is a Maven project, which calls C methods using JNA
+# BrainFlow
 
-To compile it you just need to run:
-```
-mvn package
-```
+BrainFlow is a library intended to obtain, parse and analyze EEG, EMG, ECG and other kinds of data from biosensors.
 
-## Example:
-```
-BoardShim board_shim = new BoardShim (Boards.CYTON, "/dev/ttyUSB0", true);
-board_shim.prepare_session ();
-board_shim.start_stream (3600);
-Thread.sleep (1000);
-board_shim.stop_stream ();
-System.out.println (board_shim.get_board_data_count ());
-System.out.println (board_shim.get_board_data ());
-board_shim.release_session ();
-```
+#### Advantages of BrainFlow:
+
+* powerful API with many features to simplify development
+    * Straightforward API for data acquisition
+    * Powerful API for signal filtering, denoising, downsampling...
+    * Development tools like Synthetic board, Streaming board, logging API
+* easy to use
+    * BrainFlow has many bindings, you can choose programming language you like
+    * All programming languages provide the same API, so it's simple to switch
+    * API is uniform for all boards, it makes applications on top of BrainFlow almost board agnostic
+* easy to support and extend
+    * Code to read data and to perform signal processing is implemented only once in C/C++, bindings just call C/C++ methods
+    * Powerful CI/CD system which runs integrations tests for each commit automatically using BrainFlow's Emulator
+    * Simplified process to add new boards and methods
+
+## [BrainFlow Docs, Dev and User guides and other information](https://brainflow.readthedocs.io)

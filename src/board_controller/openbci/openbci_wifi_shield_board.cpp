@@ -12,6 +12,9 @@
 
 using json = nlohmann::json;
 
+constexpr int OpenBCIWifiShieldBoard::transaction_size;
+constexpr int OpenBCIWifiShieldBoard::num_packages_per_transaction;
+constexpr int OpenBCIWifiShieldBoard::package_size;
 
 OpenBCIWifiShieldBoard::OpenBCIWifiShieldBoard (
     int num_channels, struct BrainFlowInputParams params, int board_id)
@@ -38,11 +41,12 @@ int OpenBCIWifiShieldBoard::prepare_session ()
     }
     if (params.ip_address.empty ())
     {
-        safe_logger (
-            spdlog::level::err, "ip address is empty and autodiscovery is not implemented");
-        return INVALID_ARGUMENTS_ERROR;
+        safe_logger (spdlog::level::warn, "use default ip address 192.168.4.1");
+        params.ip_address = "192.168.4.1";
     }
-    if (params.ip_protocol != (int)IpProtocolType::TCP)
+    // user doent need to provide this param because we have only tcp impl,
+    // but if its specified and its UDP return an error
+    if (params.ip_protocol == (int)IpProtocolType::UDP)
     {
         safe_logger (spdlog::level::err, "ip protocol should be tcp");
         return INVALID_ARGUMENTS_ERROR;
@@ -63,7 +67,8 @@ int OpenBCIWifiShieldBoard::prepare_session ()
     safe_logger (spdlog::level::info, "local ip addr is {}", local_ip);
 
     server_socket = new SocketServer (local_ip, params.ip_port);
-    res = server_socket->bind ();
+    res = server_socket->bind (
+        OpenBCIWifiShieldBoard::transaction_size); // set min bytes returned by recv
     if (res != 0)
     {
         safe_logger (spdlog::level::err, "failed to create server socket with addr {} and port {}",
@@ -191,7 +196,7 @@ int OpenBCIWifiShieldBoard::config_board (char *config)
     return STATUS_OK;
 }
 
-int OpenBCIWifiShieldBoard::start_stream (int buffer_size)
+int OpenBCIWifiShieldBoard::start_stream (int buffer_size, char *streamer_params)
 {
     if (keep_alive)
     {
@@ -209,6 +214,23 @@ int OpenBCIWifiShieldBoard::start_stream (int buffer_size)
         delete db;
         db = NULL;
     }
+    if (streamer)
+    {
+        delete streamer;
+        streamer = NULL;
+    }
+
+    int res = prepare_streamer (streamer_params);
+    if (res != STATUS_OK)
+    {
+        return res;
+    }
+    db = new DataBuffer (num_channels, buffer_size);
+    if (!db->is_ready ())
+    {
+        safe_logger (spdlog::level::err, "unable to prepare buffer");
+        return INVALID_BUFFER_SIZE_ERROR;
+    }
 
     std::string url = "http://" + params.ip_address + "/stream/start";
     http_t *request = http_get (url.c_str (), NULL);
@@ -225,13 +247,6 @@ int OpenBCIWifiShieldBoard::start_stream (int buffer_size)
     }
     http_release (request);
 
-    db = new DataBuffer (num_channels, buffer_size);
-    if (!db->is_ready ())
-    {
-        safe_logger (spdlog::level::err, "unable to prepare buffer");
-        return INVALID_BUFFER_SIZE_ERROR;
-    }
-
     keep_alive = true;
     streaming_thread = std::thread ([this] { this->read_thread (); });
     return STATUS_OK;
@@ -243,6 +258,11 @@ int OpenBCIWifiShieldBoard::stop_stream ()
     {
         keep_alive = false;
         streaming_thread.join ();
+        if (streamer)
+        {
+            delete streamer;
+            streamer = NULL;
+        }
         std::string url = "http://" + params.ip_address + "/stream/stop";
         http_t *request = http_get (url.c_str (), NULL);
         if (!request)

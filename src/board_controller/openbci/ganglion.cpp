@@ -8,59 +8,28 @@
 #include <unistd.h>
 #endif
 
-#include "GanglionNativeInterface.h"
 #include "custom_cast.h"
 #include "ganglion.h"
-#include "get_dll_dir.h"
+#include "ganglion_interface.h"
 #include "openbci_helpers.h"
 
 // sleep is 10 ms, so wait for 2.5sec total
 #define MAX_ATTEMPTS_TO_GET_DATA 250
 
+int Ganglion::num_objects = 0;
 
 Ganglion::Ganglion (struct BrainFlowInputParams params) : Board ((int)GANGLION_BOARD, params)
 {
-    if (params.mac_address.empty ())
+    Ganglion::num_objects++;
+    if (Ganglion::num_objects > 1)
     {
-        this->use_mac_addr = false;
+        this->is_valid = false;
     }
     else
     {
-        this->use_mac_addr = true;
+        this->is_valid = true;
     }
-    // get full path of ganglioblibnative with assumption that this lib is in the same folder
-    char ganglionlib_dir[1024];
-    bool res = get_dll_path (ganglionlib_dir);
-    std::string ganglioblib_path = "";
-#ifdef _WIN32
-    if (sizeof (void *) == 8)
-    {
-        if (res)
-        {
-            ganglioblib_path = std::string (ganglionlib_dir) + "GanglionLibNative64.dll";
-        }
-        else
-        {
-            ganglioblib_path = "GanglionLibNative64.dll";
-        }
-    }
-    else
-    {
-        if (res)
-        {
-            ganglioblib_path = std::string (ganglionlib_dir) + "GanglionLibNative32.dll";
-        }
-        else
-        {
-            ganglioblib_path = "GanglionLibNative32.dll";
-        }
-    }
-    safe_logger (spdlog::level::debug, "use dll: {}", ganglioblib_path.c_str ());
-    dll_loader = new DLLLoader (ganglioblib_path.c_str ());
-#else
-    // temp unimplemented
-    dll_loader = NULL;
-#endif
+    this->use_mac_addr = (params.mac_address.empty ()) ? false : true;
     this->is_streaming = false;
     this->keep_alive = false;
     this->initialized = false;
@@ -71,6 +40,7 @@ Ganglion::Ganglion (struct BrainFlowInputParams params) : Board ((int)GANGLION_B
 Ganglion::~Ganglion ()
 {
     skip_logs = true;
+    Ganglion::num_objects--;
     release_session ();
 }
 
@@ -82,13 +52,18 @@ int Ganglion::prepare_session ()
         return STATUS_OK;
     }
 
-    if (!this->dll_loader->load_library ())
+    if (!this->is_valid)
     {
-        safe_logger (spdlog::level::err, "failed to load library");
-        return GENERAL_ERROR;
+        safe_logger (spdlog::level::info, "only one ganglion per process is supported");
+        return ANOTHER_BOARD_IS_CREATED_ERROR;
     }
 
-    safe_logger (spdlog::level::debug, "Library is loaded");
+    if (this->params.serial_port.empty ())
+    {
+        safe_logger (spdlog::level::err, "you need to specify dongle port");
+        return INVALID_ARGUMENTS_ERROR;
+    }
+
     int res = this->call_init ();
     if (res != STATUS_OK)
     {
@@ -102,11 +77,11 @@ int Ganglion::prepare_session ()
         return res;
     }
 
-    initialized = true;
+    this->initialized = true;
     return STATUS_OK;
 }
 
-int Ganglion::start_stream (int buffer_size)
+int Ganglion::start_stream (int buffer_size, char *streamer_params)
 {
     if (this->is_streaming)
     {
@@ -124,7 +99,17 @@ int Ganglion::start_stream (int buffer_size)
         delete this->db;
         this->db = NULL;
     }
+    if (this->streamer)
+    {
+        delete this->streamer;
+        this->streamer = NULL;
+    }
 
+    int res = prepare_streamer (streamer_params);
+    if (res != STATUS_OK)
+    {
+        return res;
+    }
     this->db = new DataBuffer (num_channels, buffer_size);
     if (!this->db->is_ready ())
     {
@@ -132,7 +117,7 @@ int Ganglion::start_stream (int buffer_size)
         return INVALID_BUFFER_SIZE_ERROR;
     }
 
-    int res = this->call_start ();
+    res = this->call_start ();
     if (res != STATUS_OK)
     {
         return res;
@@ -166,6 +151,11 @@ int Ganglion::stop_stream ()
         this->keep_alive = false;
         this->is_streaming = false;
         this->streaming_thread.join ();
+        if (this->streamer)
+        {
+            delete this->streamer;
+            this->streamer = NULL;
+        }
         this->state = SYNC_TIMEOUT_ERROR;
         return this->call_stop ();
     }
@@ -188,40 +178,27 @@ int Ganglion::release_session ()
         }
         this->initialized = false;
     }
-    if (this->dll_loader != NULL)
-    {
-        this->call_close ();
-        this->dll_loader->free_library ();
-        delete this->dll_loader;
-        this->dll_loader = NULL;
-    }
+    this->call_close ();
+    this->call_release ();
     return STATUS_OK;
 }
 
 void Ganglion::read_thread ()
 {
     // https://docs.openbci.com/Hardware/08-Ganglion_Data_Format
-    DLLFunc func = dll_loader->get_address ("get_data_native");
-    if (func == NULL)
-    {
-        safe_logger (spdlog::level::err, "failed to get function address for get_data_native");
-        {
-            std::lock_guard<std::mutex> lk (this->m);
-            this->state = GENERAL_ERROR;
-        }
-        this->cv.notify_one ();
-        return;
-    }
     int num_attempts = 0;
     bool was_reset = false;
-
     float last_data[8] = {0};
+
+    double accel_x = 0.;
+    double accel_y = 0.;
+    double accel_z = 0.;
 
     while (this->keep_alive)
     {
-        struct GanglionLibNative::GanglionDataNative data;
-        int res = (func) ((void *)&data);
-        if (res == GanglionLibNative::CustomExitCodesNative::STATUS_OK)
+        struct GanglionLib::GanglionData data;
+        int res = GanglionLib::get_data ((void *)&data);
+        if (res == (int)GanglionLib::CustomExitCodes::STATUS_OK)
         {
             if (this->state != STATUS_OK)
             {
@@ -264,17 +241,31 @@ void Ganglion::read_thread ()
                 package[2] = this->eeg_scale * last_data[5];
                 package[3] = this->eeg_scale * last_data[6];
                 package[4] = this->eeg_scale * last_data[7];
-
-                // I dont understand how to get accel data, for now it's 0
-                package[5] = 0.;
-                package[6] = 0.;
-                package[7] = 0.;
+                package[5] = accel_x;
+                package[6] = accel_y;
+                package[7] = accel_z;
+                this->streamer->stream_data (package, 8, data.timestamp);
                 this->db->add_data (data.timestamp, package);
                 continue;
             }
             // 18 bit compression, sends delta from previous value instead of real value!
             else if ((data.data[0] >= 1) && (data.data[0] <= 100))
             {
+                int last_digit = data.data[0] % 10;
+                switch (last_digit)
+                {
+                    case 0:
+                        accel_x = this->accel_scale * data.data[19];
+                        break;
+                    case 1:
+                        accel_y = this->accel_scale * data.data[19];
+                        break;
+                    case 2:
+                        accel_z = this->accel_scale * data.data[19];
+                        break;
+                    default:
+                        break;
+                }
                 bits_per_num = 18;
             }
             else if ((data.data[0] >= 101) && (data.data[0] <= 200))
@@ -291,9 +282,13 @@ void Ganglion::read_thread ()
             for (int i = 8, counter = 0; i < bits_per_num * 8; i += bits_per_num, counter++)
             {
                 if (bits_per_num == 18)
+                {
                     delta[counter] = cast_ganglion_bits_to_int32<18> (package_bits + i);
+                }
                 else
+                {
                     delta[counter] = cast_ganglion_bits_to_int32<19> (package_bits + i);
+                }
             }
 
             // apply the first delta to the last data we got in the previous iteration
@@ -314,12 +309,17 @@ void Ganglion::read_thread ()
             package[2] = this->eeg_scale * last_data[1];
             package[3] = this->eeg_scale * last_data[2];
             package[4] = this->eeg_scale * last_data[3];
+            package[5] = accel_x;
+            package[6] = accel_y;
+            package[7] = accel_z;
+            this->streamer->stream_data (package, 8, data.timestamp);
             this->db->add_data (data.timestamp, package);
             // add second package
             package[1] = this->eeg_scale * last_data[4];
             package[2] = this->eeg_scale * last_data[5];
             package[3] = this->eeg_scale * last_data[6];
             package[4] = this->eeg_scale * last_data[7];
+            this->streamer->stream_data (package, 8, data.timestamp);
             this->db->add_data (data.timestamp, package);
         }
         else
@@ -330,51 +330,13 @@ void Ganglion::read_thread ()
             }
             if (num_attempts == MAX_ATTEMPTS_TO_GET_DATA)
             {
-                if (was_reset)
+                safe_logger (spdlog::level::err, "no data received");
                 {
-                    safe_logger (spdlog::level::err, "no data even after reset");
-                    {
-                        std::lock_guard<std::mutex> lk (this->m);
-                        this->state = GENERAL_ERROR;
-                    }
-                    this->cv.notify_one ();
-                    return;
+                    std::lock_guard<std::mutex> lk (this->m);
+                    this->state = GENERAL_ERROR;
                 }
-                else
-                {
-                    safe_logger (spdlog::level::warn, "resetting Ganglion device");
-                    int tmp_res = this->call_close ();
-                    if (tmp_res != STATUS_OK)
-                    {
-                        {
-                            std::lock_guard<std::mutex> lk (this->m);
-                            this->state = tmp_res;
-                        }
-                        this->cv.notify_one ();
-                        return;
-                    }
-                    tmp_res = this->call_open ();
-                    if (tmp_res != STATUS_OK)
-                    {
-                        {
-                            std::lock_guard<std::mutex> lk (this->m);
-                            this->state = tmp_res;
-                        }
-                        this->cv.notify_one ();
-                        return;
-                    }
-                    tmp_res = this->call_start ();
-                    if (tmp_res != STATUS_OK)
-                    {
-                        {
-                            std::lock_guard<std::mutex> lk (this->m);
-                            this->state = tmp_res;
-                        }
-                        this->cv.notify_one ();
-                        return;
-                    }
-                    was_reset = true;
-                }
+                this->cv.notify_one ();
+                return;
             }
 #ifdef _WIN32
             Sleep (10);
@@ -393,19 +355,20 @@ int Ganglion::config_board (char *config)
     {
         return res;
     }
-    return call_config (config);
+    // I've tried to pause and restart inside bglib code it doesnt work, dont want to investigate
+    // further
+    if (this->keep_alive)
+    {
+        safe_logger (spdlog::level::debug, "For ganglion config doesnt work if stream is running");
+        return STREAM_ALREADY_RUN_ERROR;
+    }
+    return this->call_config (config);
 }
 
 int Ganglion::call_init ()
 {
-    DLLFunc func = this->dll_loader->get_address ("initialize_native");
-    if (func == NULL)
-    {
-        safe_logger (spdlog::level::err, "failed to get function address for initialize");
-        return GENERAL_ERROR;
-    }
-    int res = (func) (NULL);
-    if (res != GanglionLibNative::CustomExitCodesNative::STATUS_OK)
+    int res = GanglionLib::initialize ((void *)params.serial_port.c_str ());
+    if (res != (int)GanglionLib::CustomExitCodes::STATUS_OK)
     {
         safe_logger (spdlog::level::err, "failed to init GanglionLib {}", res);
         return GENERAL_ERROR;
@@ -415,51 +378,31 @@ int Ganglion::call_init ()
 
 int Ganglion::call_open ()
 {
-    int res = GanglionLibNative::CustomExitCodesNative::STATUS_OK;
+    int res = GanglionLib::CustomExitCodes::GENERAL_ERROR;
     if (this->use_mac_addr)
     {
         safe_logger (spdlog::level::info, "search for {}", this->params.mac_address.c_str ());
-        DLLFunc func = this->dll_loader->get_address ("open_ganglion_mac_addr_native");
-        if (func == NULL)
-        {
-            safe_logger (spdlog::level::err,
-                "failed to get function address for open_ganglion_mac_addr_native");
-            return GENERAL_ERROR;
-        }
-        res = (func) (const_cast<char *> (params.mac_address.c_str ()));
+        res =
+            GanglionLib::open_ganglion_mac_addr (const_cast<char *> (params.mac_address.c_str ()));
     }
     else
     {
         safe_logger (
             spdlog::level::info, "mac address is not specified, try to find ganglion without it");
-        DLLFunc func = this->dll_loader->get_address ("open_ganglion_native");
-        if (func == NULL)
-        {
-            safe_logger (
-                spdlog::level::err, "failed to get function address for open_ganglion_native");
-            return GENERAL_ERROR;
-        }
-        res = (func) (NULL);
+        res = GanglionLib::open_ganglion (NULL);
     }
-    if (res != GanglionLibNative::CustomExitCodesNative::STATUS_OK)
+    if (res != GanglionLib::CustomExitCodes::STATUS_OK)
     {
         safe_logger (spdlog::level::err, "failed to Open Ganglion Device {}", res);
         return GENERAL_ERROR;
     }
-    safe_logger (spdlog::level::info, "Found Ganglion Device");
     return STATUS_OK;
 }
 
 int Ganglion::call_config (char *config)
 {
-    DLLFunc func = this->dll_loader->get_address ("config_board_native");
-    if (func == NULL)
-    {
-        safe_logger (spdlog::level::err, "failed to get function address for config_board_native");
-        return GENERAL_ERROR;
-    }
-    int res = (func) (config);
-    if (res != GanglionLibNative::CustomExitCodesNative::STATUS_OK)
+    int res = GanglionLib::config_board (config);
+    if (res != GanglionLib::CustomExitCodes::STATUS_OK)
     {
         safe_logger (spdlog::level::err, "failed to config board {}", res);
         return GENERAL_ERROR;
@@ -469,14 +412,8 @@ int Ganglion::call_config (char *config)
 
 int Ganglion::call_start ()
 {
-    DLLFunc func = this->dll_loader->get_address ("start_stream_native");
-    if (func == NULL)
-    {
-        safe_logger (spdlog::level::err, "failed to get function address for start_stream_native");
-        return GENERAL_ERROR;
-    }
-    int res = (func) (NULL);
-    if (res != GanglionLibNative::CustomExitCodesNative::STATUS_OK)
+    int res = GanglionLib::start_stream (NULL);
+    if (res != (int)GanglionLib::CustomExitCodes::STATUS_OK)
     {
         safe_logger (spdlog::level::err, "failed to start streaming {}", res);
         return GENERAL_ERROR;
@@ -486,14 +423,8 @@ int Ganglion::call_start ()
 
 int Ganglion::call_stop ()
 {
-    DLLFunc func = dll_loader->get_address ("stop_stream_native");
-    if (func == NULL)
-    {
-        safe_logger (spdlog::level::err, "failed to get function address for stop_stream_native");
-        return GENERAL_ERROR;
-    }
-    int res = (func) (NULL);
-    if (res != GanglionLibNative::CustomExitCodesNative::STATUS_OK)
+    int res = GanglionLib::stop_stream (NULL);
+    if (res != (int)GanglionLib::CustomExitCodes::STATUS_OK)
     {
         safe_logger (spdlog::level::err, "failed to stop streaming {}", res);
         return GENERAL_ERROR;
@@ -503,17 +434,21 @@ int Ganglion::call_stop ()
 
 int Ganglion::call_close ()
 {
-    DLLFunc func = dll_loader->get_address ("close_ganglion_native");
-    if (func == NULL)
+    int res = GanglionLib::close_ganglion (NULL);
+    if (res != (int)GanglionLib::CustomExitCodes::STATUS_OK)
     {
-        safe_logger (
-            spdlog::level::err, "failed to get function address for close_ganglion_native");
+        safe_logger (spdlog::level::err, "failed to close ganglion {}", res);
         return GENERAL_ERROR;
     }
-    int res = (func) (NULL);
-    if (res != GanglionLibNative::CustomExitCodesNative::STATUS_OK)
+    return STATUS_OK;
+}
+
+int Ganglion::call_release ()
+{
+    int res = GanglionLib::release (NULL);
+    if (res != (int)GanglionLib::CustomExitCodes::STATUS_OK)
     {
-        safe_logger (spdlog::level::err, "failed to close Ganglion {}", res);
+        safe_logger (spdlog::level::err, "failed to release ganglion library {}", res);
         return GENERAL_ERROR;
     }
     return STATUS_OK;

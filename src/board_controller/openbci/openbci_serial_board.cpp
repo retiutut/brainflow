@@ -83,13 +83,16 @@ int OpenBCISerialBoard::status_check ()
     Board::board_logger->trace ("start status check");
     unsigned char buf[1];
     int count = 0;
+    int max_empty_seq = 5;
+    int num_empty_attempts = 0;
 
-    // board is ready if there are '$$$'
     for (int i = 0; i < 500; i++)
     {
         int res = serial->read_from_serial_port (buf, 1);
         if (res > 0)
         {
+            num_empty_attempts = 0;
+            // board is ready if there are '$$$'
             if (buf[0] == '$')
             {
                 count++;
@@ -101,6 +104,15 @@ int OpenBCISerialBoard::status_check ()
             if (count == 3)
             {
                 return STATUS_OK;
+            }
+        }
+        else
+        {
+            num_empty_attempts++;
+            if (num_empty_attempts > max_empty_seq)
+            {
+                safe_logger (spdlog::level::err, "board doesnt send welcome characters!");
+                return BOARD_NOT_READY_ERROR;
             }
         }
     }
@@ -143,7 +155,7 @@ int OpenBCISerialBoard::prepare_session ()
     return STATUS_OK;
 }
 
-int OpenBCISerialBoard::start_stream (int buffer_size)
+int OpenBCISerialBoard::start_stream (int buffer_size, char *streamer_params)
 {
     if (is_streaming)
     {
@@ -161,14 +173,17 @@ int OpenBCISerialBoard::start_stream (int buffer_size)
         delete db;
         db = NULL;
     }
-
-    // start streaming
-    int send_res = send_to_board ("b");
-    if (send_res != STATUS_OK)
+    if (streamer)
     {
-        return send_res;
+        delete streamer;
+        streamer = NULL;
     }
 
+    int res = prepare_streamer (streamer_params);
+    if (res != STATUS_OK)
+    {
+        return res;
+    }
     db = new DataBuffer (num_channels, buffer_size);
     if (!db->is_ready ())
     {
@@ -176,6 +191,12 @@ int OpenBCISerialBoard::start_stream (int buffer_size)
         return INVALID_BUFFER_SIZE_ERROR;
     }
 
+    // start streaming
+    int send_res = send_to_board ("b");
+    if (send_res != STATUS_OK)
+    {
+        return send_res;
+    }
     keep_alive = true;
     streaming_thread = std::thread ([this] { this->read_thread (); });
     is_streaming = true;
@@ -188,7 +209,15 @@ int OpenBCISerialBoard::stop_stream ()
     {
         keep_alive = false;
         is_streaming = false;
-        streaming_thread.join ();
+        if (streaming_thread.joinable ())
+        {
+            streaming_thread.join ();
+        }
+        if (streamer)
+        {
+            delete streamer;
+            streamer = NULL;
+        }
         return send_to_board ("s");
     }
     else

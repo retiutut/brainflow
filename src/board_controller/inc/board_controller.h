@@ -14,6 +14,7 @@
 #include "board_info_getter.h"
 #include "brainflow_constants.h"
 
+
 enum class IpProtocolType
 {
     NONE = 0,
@@ -60,7 +61,7 @@ extern "C"
             *json_brainflow_input_params); // I dont use const char * because I am not sure that all
                                            // languages support passing const char * instead char *
     SHARED_EXPORT int CALLING_CONVENTION start_stream (
-        int buffer_size, int board_id, char *json_brainflow_input_params);
+        int buffer_size, char *streamer_params, int board_id, char *json_brainflow_input_params);
     SHARED_EXPORT int CALLING_CONVENTION stop_stream (
         int board_id, char *json_brainflow_input_params);
     SHARED_EXPORT int CALLING_CONVENTION release_session (
@@ -77,6 +78,7 @@ extern "C"
     // logging methods
     SHARED_EXPORT int CALLING_CONVENTION set_log_level (int log_level);
     SHARED_EXPORT int CALLING_CONVENTION set_log_file (char *log_file);
+    SHARED_EXPORT int CALLING_CONVENTION log_message (int log_level, char *message);
 
 #ifdef __cplusplus
 }
