@@ -37,7 +37,7 @@ int main (int argc, char *argv[])
         board->prepare_session ();
 
         // TEST DISABLE CHANNELS 1-4
-        char *a = "1";
+        char *a = "4";
         board->config_board (a);
 
         board->start_stream ();
@@ -60,8 +60,13 @@ int main (int argc, char *argv[])
         print_head (data, num_rows, data_count);
 
         /// TEST ENABLE CHANNELS 1-4
-        char *b = "!";
+        char *b = "$";
         board->config_board (b);
+#ifdef _WIN32
+        Sleep (5000);
+#else
+        sleep (2);
+#endif
         board->start_stream ();
         // board->start_stream (45000, (char *)"file://file_stream_test.csv:a"); // store data in a
         // file directly during streaming
