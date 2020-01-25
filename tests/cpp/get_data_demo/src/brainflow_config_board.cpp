@@ -36,9 +36,9 @@ int main (int argc, char *argv[])
     {
         board->prepare_session ();
 
-        // TEST DISABLE CHANNELS 1-4
-        char *a = "4";
-        board->config_board (a);
+        // TEST DISABLE CHANNELS 4
+        char *chanOff = "4";
+        board->config_board (chanOff);
 
         board->start_stream ();
         // board->start_stream (45000, (char *)"file://file_stream_test.csv:a"); // store data in a
@@ -59,15 +59,11 @@ int main (int argc, char *argv[])
         std::cout << std::endl << "Data from the board" << std::endl << std::endl;
         print_head (data, num_rows, data_count);
 
-        /// TEST ENABLE CHANNELS 1-4
-        char *b = "$";
-        board->config_board (b);
-#ifdef _WIN32
-        Sleep (5000);
-#else
-        sleep (2);
-#endif
-        board->start_stream ();
+
+        /// TEST ENABLE CHANNEL 4
+        char *chanOn = "$";
+        board->config_board (chanOn);
+        // board->start_stream ();
         // board->start_stream (45000, (char *)"file://file_stream_test.csv:a"); // store data in a
         // file directly during streaming
         BoardShim::log_message ((int)LogLevels::LEVEL_INFO, "Start sleeping in the main thread");
