@@ -336,6 +336,7 @@ ASALocalRun/
 
 #Environment file
 .env
+.vscode/
 
 build*
 installed*
