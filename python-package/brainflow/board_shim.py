@@ -71,7 +71,7 @@ class BrainFlowInputParams (object):
         self.other_info = ''
 
     def to_json (self):
-        return json.dumps (self, default = lambda o: o.__dict__, 
+        return json.dumps (self, default = lambda o: o.__dict__,
             sort_keys = True, indent = 4)
 
 class BrainFlowError (Exception):
@@ -117,6 +117,14 @@ class BoardControllerDLL (object):
         self.prepare_session = self.lib.prepare_session
         self.prepare_session.restype = ctypes.c_int
         self.prepare_session.argtypes = [
+            ctypes.c_int,
+            ctypes.c_char_p
+        ]
+
+        self.is_prepared = self.lib.is_prepared
+        self.is_prepared.restype = ctypes.c_int
+        self.is_prepared.argtypes = [
+            ndpointer (ctypes.c_int32),
             ctypes.c_int,
             ctypes.c_char_p
         ]
@@ -379,7 +387,7 @@ class BoardShim (object):
     @classmethod
     def log_message (cls, log_level, message):
         """write your own log message to BrainFlow logger, use it if you wanna have single logger for your own code and BrainFlow's code
-        
+
         :param log_level: log level
         :type log_file: int
         :param message: message
@@ -451,7 +459,7 @@ class BoardShim (object):
         :raises BrainFlowError: If this board has no such data exit code is UNSUPPORTED_BOARD_ERROR
         """
         battery_channel = numpy.zeros (1).astype (numpy.int32)
-        res = BoardControllerDLL.get_instance ().get_package_num_channel (board_id, battery_channel)
+        res = BoardControllerDLL.get_instance ().get_battery_channel (board_id, battery_channel)
         if res != BrainflowExitCodes.STATUS_OK.value:
             raise BrainFlowError ('unable to request info about this board', res)
         return int (battery_channel[0])
@@ -773,6 +781,19 @@ class BoardShim (object):
         if res != BrainflowExitCodes.STATUS_OK.value:
             raise BrainFlowError ('unable to obtain buffer size', res)
         return data_size[0]
+
+    def is_prepared (self):
+        """Check if session is ready or not
+
+        :return: session status
+        :rtype: bool
+        """
+        prepared = numpy.zeros (1).astype (numpy.int32)
+
+        res = BoardControllerDLL.get_instance ().is_prepared (prepared, self.board_id, self.input_json)
+        if res != BrainflowExitCodes.STATUS_OK.value:
+            raise BrainFlowError ('unable to check session status', res)
+        return bool(prepared[0])
 
     def get_board_data (self):
         """Get all board data and remove them from ringbuffer
