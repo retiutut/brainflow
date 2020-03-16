@@ -7,7 +7,7 @@
 #define SHARED_EXPORT __declspec(dllexport)
 #define CALLING_CONVENTION __cdecl
 #else
-#define SHARED_EXPORT
+#define SHARED_EXPORT __attribute__((visibility("default")))
 #define CALLING_CONVENTION
 #endif
 
@@ -55,11 +55,12 @@ struct BrainFlowInputParams
 extern "C"
 {
 #endif
+    // I dont use const char * because I am not sure that all
+    // languages support passing const char * instead char *
+
     // data acquisition methods
-    SHARED_EXPORT int CALLING_CONVENTION prepare_session (int board_id,
-        char
-            *json_brainflow_input_params); // I dont use const char * because I am not sure that all
-                                           // languages support passing const char * instead char *
+    SHARED_EXPORT int CALLING_CONVENTION prepare_session (
+        int board_id, char *json_brainflow_input_params);
     SHARED_EXPORT int CALLING_CONVENTION start_stream (
         int buffer_size, char *streamer_params, int board_id, char *json_brainflow_input_params);
     SHARED_EXPORT int CALLING_CONVENTION stop_stream (
