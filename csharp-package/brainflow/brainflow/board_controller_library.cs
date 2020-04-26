@@ -49,7 +49,8 @@ namespace brainflow
         GANGLION_WIFI_BOARD = 4,
         CYTON_WIFI_BOARD = 5,
         CYTON_DAISY_WIFI_BOARD = 6,
-        BRAINBIT_BOARD = 7
+        BRAINBIT_BOARD = 7,
+        UNICORN_BOARD = 8
     };
 
 
@@ -115,6 +116,8 @@ namespace brainflow
         public static extern int get_temperature_channels (int board_id, int[] channels, int[] len);
         [DllImport("BoardController.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int is_prepared(int[] prepared, int board_id, string input_json);
+        [DllImport("BoardController.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int get_eeg_names(int board_id, byte[] eeg_names, int[] len);
     }
 
     public static class BoardControllerLibrary32
@@ -175,6 +178,8 @@ namespace brainflow
         public static extern int get_temperature_channels (int board_id, int[] channels, int[] len);
         [DllImport("BoardController32.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int is_prepared(int[] prepared, int board_id, string input_json);
+        [DllImport("BoardController32.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int get_eeg_names(int board_id, byte[] eeg_names, int[] len);
     }
 
     public static class BoardControllerLibrary
@@ -313,6 +318,14 @@ namespace brainflow
                 return BoardControllerLibrary64.get_timestamp_channel (board_id, timestamp_channel);
             else
                 return BoardControllerLibrary32.get_timestamp_channel (board_id, timestamp_channel);
+        }
+
+        public static int get_eeg_names(int board_id, byte[] names, int[] len)
+        {
+            if (System.Environment.Is64BitProcess)
+                return BoardControllerLibrary64.get_eeg_names(board_id, names, len);
+            else
+                return BoardControllerLibrary32.get_eeg_names(board_id, names, len);
         }
 
         public static int get_eeg_channels (int board_id, int[] channels, int[] len)

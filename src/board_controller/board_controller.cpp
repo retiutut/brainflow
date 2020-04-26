@@ -14,6 +14,7 @@
 #include "board.h"
 #include "board_controller.h"
 #include "brainbit.h"
+#include "brainflow_input_params.h"
 #include "cyton.h"
 #include "cyton_daisy.h"
 #include "cyton_daisy_wifi.h"
@@ -23,6 +24,7 @@
 #include "novaxr.h"
 #include "streaming_board.h"
 #include "synthetic_board.h"
+#include "unicorn_board.h"
 
 #include "json.hpp"
 
@@ -92,6 +94,9 @@ int prepare_session (int board_id, char *json_brainflow_input_params)
             break;
         case BRAINBIT_BOARD:
             board = std::shared_ptr<Board> (new BrainBit (params));
+            break;
+        case UNICORN_BOARD:
+            board = std::shared_ptr<Board> (new UnicornBoard (params));
             break;
         default:
             return UNSUPPORTED_BOARD_ERROR;
@@ -315,6 +320,7 @@ int string_to_brainflow_input_params (
         params->other_info = config["other_info"];
         params->mac_address = config["mac_address"];
         params->ip_address = config["ip_address"];
+        params->timeout = config["timeout"];
         return STATUS_OK;
     }
     catch (json::exception &e)

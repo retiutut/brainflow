@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 
 import org.apache.commons.lang3.SystemUtils;
@@ -75,6 +76,8 @@ public class BoardShim
         int get_temperature_channels (int board_id, int[] temperature_channels, int[] len);
 
         int is_prepared (int[] prepared, int board_id, String params);
+
+        int get_eeg_names (int board_id, byte[] names, int[] len);
     }
 
     private static DllInterface instance;
@@ -90,6 +93,11 @@ public class BoardShim
         } else if (SystemUtils.IS_OS_MAC)
         {
             lib_name = "libBoardController.dylib";
+            Path location = unpack_from_jar ("libneurosdk-shared.dylib");
+            if (location != null)
+            {
+                System.load (location.toString ());
+            }
         }
 
         // need to extract libraries from jar
@@ -99,7 +107,7 @@ public class BoardShim
         instance = (DllInterface) Native.loadLibrary (lib_name, DllInterface.class);
     }
 
-    private static void unpack_from_jar (String lib_name)
+    private static Path unpack_from_jar (String lib_name)
     {
         try
         {
@@ -108,9 +116,11 @@ public class BoardShim
                 file.delete ();
             InputStream link = (BoardShim.class.getResourceAsStream (lib_name));
             Files.copy (link, file.getAbsoluteFile ().toPath ());
+            return file.getAbsoluteFile ().toPath ();
         } catch (Exception io)
         {
-            System.err.println ("native library: " + lib_name + " is not found in jar file");
+            System.err.println ("file: " + lib_name + " is not found in jar file");
+            return null;
         }
     }
 
@@ -245,6 +255,23 @@ public class BoardShim
             throw new BrainFlowError ("Error in board info getter", ec);
         }
         return res[0];
+    }
+
+    /**
+     * Get names of EEG electrodes in 10-20 system. Only if electrodes have freezed
+     * locations
+     */
+    public static String[] get_eeg_names (int board_id) throws BrainFlowError
+    {
+        int[] len = new int[1];
+        byte[] str = new byte[4096];
+        int ec = instance.get_eeg_names (board_id, str, len);
+        if (ec != ExitCode.STATUS_OK.get_code ())
+        {
+            throw new BrainFlowError ("Error in board info getter", ec);
+        }
+        String eeg_names_string = new String (str, 0, len[0]);
+        return eeg_names_string.split (",");
     }
 
     /**

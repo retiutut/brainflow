@@ -6,17 +6,18 @@ Supported Boards
 To create an instance of BoardShim class for your board check required inputs in the table below:
 
 .. csv-table:: Required inputs
-   :header: "Board", "Board Id", "BrainFlowInputParams.serial_port", "BrainFlowInputParams.mac_address", "BrainFlowInputParams.ip_address", "BrainFlowInputParams.ip_port", "BrainFlowInputParams.ip_protocol", "BrainFlowInputParams.other_info"
+   :header: "Board", "Board Id", "BrainFlowInputParams.serial_port", "BrainFlowInputParams.mac_address", "BrainFlowInputParams.ip_address", "BrainFlowInputParams.ip_port", "BrainFlowInputParams.ip_protocol", "BrainFlowInputParams.other_info", "BrainFlowInputParams.timeout"
 
-   "Streaming Board", "BoardIds.STREAMING_BOARD (-2)", "-", "-", "multicast IP address", "port", "-", "Board Id of master board"
-   "Synthetic Board", "BoardIds.SYNTHETIC_BOARD (-1)", "-", "-", "-", "-", "-", "-"
-   "Cyton", "BoardIds.CYTON_BOARD (0)", "dongle serial port(COM3, /dev/ttyUSB0, /dev/cu.usbserial-xxxxxx...)", "-", "-", "-", "-", "-"
-   "Ganglion", "BoardIds.GANGLION_BOARD (1)", "dongle serial port(COM3, /dev/ttyUSB0...)", "Optional: Ganglion's MAC address", "-", "-", "-", "-"
-   "Cyton Daisy", "BoardIds.CYTON_DAISY_BOARD (2)", "dongle serial port(COM3, /dev/ttyUSB0, /dev/cu.usbserial-xxxxxx...)", "-", "-", "-", "-", "-"
-   "Ganglion Wifi", "BoardIds.GANGLION_WIFI_BOARD (4)", "-", "-", "Wifi Shield IP(default 192.168.4.1)", "any local port which is free", "-", "-"
-   "Cyton Wifi", "BoardIds.CYTON_WIFI_BOARD (5)", "-", "-", "Wifi Shield IP(default 192.168.4.1)", "any local port which is free", "-", "-"
-   "Cyton Daisy Wifi", "BoardIds.CYTON_DAISY_WIFI_BOARD (6)", "-", "-", "Wifi Shield IP(default 192.168.4.1)", "any local port which is free", "-", "-"
-   "BrainBit", "BoardIds.BRAINBIT_BOARD (7)", "-", "-", "-", "-", "-", "Serial Number of BrainBit device"
+   "Streaming Board", "BoardIds.STREAMING_BOARD (-2)", "-", "-", "multicast IP address", "port", "-", "Board Id of master board", "-"
+   "Synthetic Board", "BoardIds.SYNTHETIC_BOARD (-1)", "-", "-", "-", "-", "-", "-", "-"
+   "Cyton", "BoardIds.CYTON_BOARD (0)", "dongle serial port(COM3, /dev/ttyUSB0, /dev/cu.usbserial-xxxxxx...)", "-", "-", "-", "-", "-", "-"
+   "Ganglion", "BoardIds.GANGLION_BOARD (1)", "dongle serial port(COM3, /dev/ttyUSB0...)", "Optional: Ganglion's MAC address", "-", "-", "-", "-", "Timeout for device discovery(default 15sec)"
+   "Cyton Daisy", "BoardIds.CYTON_DAISY_BOARD (2)", "dongle serial port(COM3, /dev/ttyUSB0, /dev/cu.usbserial-xxxxxx...)", "-", "-", "-", "-", "-", "-"
+   "Ganglion Wifi", "BoardIds.GANGLION_WIFI_BOARD (4)", "-", "-", "Wifi Shield IP(default 192.168.4.1)", "any local port which is free", "-", "-", "Timeout for HTTP response(default 10sec)"
+   "Cyton Wifi", "BoardIds.CYTON_WIFI_BOARD (5)", "-", "-", "Wifi Shield IP(default 192.168.4.1)", "any local port which is free", "-", "-", "Timeout for HTTP response(default 10sec)"
+   "Cyton Daisy Wifi", "BoardIds.CYTON_DAISY_WIFI_BOARD (6)", "-", "-", "Wifi Shield IP(default 192.168.4.1)", "any local port which is free", "-", "-", "Timeout for HTTP response(default 10sec)"
+   "BrainBit", "BoardIds.BRAINBIT_BOARD (7)", "-", "-", "-", "-", "-", "Optional: Serial Number of BrainBit device", "Timeout for device discovery(default 15sec)"
+   "Unicorn", "BoardIds.UNICORN_BOARD (8)", "-", "-", "-", "-", "-", "Optional: Serial Number of Unicorn device", "-"
 
 
 Streaming Board
@@ -97,7 +98,7 @@ Cyton
     :width: 200px
     :height: 200px
 
-`Cyton Getting Started Guide from OpenBCI <https://docs.openbci.com/docs/01GettingStarted/01-Boards/CytonGS>`_.
+`Cyton Getting Started Guide from OpenBCI <https://docs.openbci.com/docs/01GettingStarted/01-Boards/CytonGS>`_
 
 To choose this board in BoardShim constructor please specify:
 
@@ -127,15 +128,21 @@ Ganglion
     :width: 400px
     :height: 230px
 
-`Ganglion Getting Started Guide from OpenBCI <https://docs.openbci.com/docs/01GettingStarted/01-Boards/GanglionGS>`_.
+`Ganglion Getting Started Guide from OpenBCI <https://docs.openbci.com/docs/01GettingStarted/01-Boards/GanglionGS>`_
 
-**To use Ganglion board you need a** `dongle <https://shop.openbci.com/collections/frontpage/products/ganglion-dongle>`_.
+**To use Ganglion board you need a** `dongle <https://shop.openbci.com/collections/frontpage/products/ganglion-dongle>`_
 
 To choose this board in BoardShim constructor please specify:
 
 - board_id: 1
 - serial_port field of BrainFlowInputParams structure
 - mac_address field of BrainFlowInputParams structure, if its empty BrainFlow will try to autodiscover Ganglion
+- optional: timeout field of BrainFlowInputParams structure, default is 15sec
+
+To get Ganglion's MAC address you can use:
+
+- Windows: `Bluetooth LE Explorer App <https://www.microsoft.com/en-us/p/bluetooth-le-explorer/9n0ztkf1qd98?activetab=pivot:overviewtab>`_
+- Linux: hcitool command
 
 Supported platforms:
 
@@ -159,7 +166,7 @@ Cyton Daisy
     :width: 400px
     :height: 394px
 
-`CytonDaisy Getting Started Guide from OpenBCI <https://docs.openbci.com/docs/01GettingStarted/01-Boards/DaisyGS>`_.
+`CytonDaisy Getting Started Guide from OpenBCI <https://docs.openbci.com/docs/01GettingStarted/01-Boards/DaisyGS>`_
 
 To choose this board in BoardShim constructor please specify:
 
@@ -190,15 +197,16 @@ Ganglion with WiFi Shield
     :width: 300px
     :height: 300px
 
-`WiFi Shield Getting Started Guide from OpenBCI <https://docs.openbci.com/docs/01GettingStarted/01-Boards/WiFiGS>`_.
+`WiFi Shield Getting Started Guide from OpenBCI <https://docs.openbci.com/docs/01GettingStarted/01-Boards/WiFiGS>`_
 
-`WiFi Shield Programming Guide from OpenBCI <https://docs.openbci.com/docs/05ThirdParty/03-WiFiShield/WiFiProgam>`_.
+`WiFi Shield Programming Guide from OpenBCI <https://docs.openbci.com/docs/05ThirdParty/03-WiFiShield/WiFiProgam>`_
 
 To choose this board in BoardShim constructor please specify:
 
 - board_id: 4
 - ip_address field of BrainFlowInputParams structure should contain WiFi Shield Ip address(in direct mode its 192.168.4.1)
 - ip_port field of BrainFlowInputParams structure should be any local port which is free right now
+- optional: timeout field of BrainFlowInputParams structure, default is 10sec
 
 Supported platforms:
 
@@ -220,15 +228,16 @@ Cyton with WiFi Shield
     :width: 400px
     :height: 325px
 
-`WiFi shield Getting Started Guide from OpenBCI <https://docs.openbci.com/docs/01GettingStarted/01-Boards/WiFiGS>`_.
+`WiFi shield Getting Started Guide from OpenBCI <https://docs.openbci.com/docs/01GettingStarted/01-Boards/WiFiGS>`_
 
-`WiFi shield Programming Guide from OpenBCI <https://docs.openbci.com/docs/05ThirdParty/03-WiFiShield/WiFiProgam>`_.
+`WiFi shield Programming Guide from OpenBCI <https://docs.openbci.com/docs/05ThirdParty/03-WiFiShield/WiFiProgam>`_
 
 To choose this board in BoardShim constructor please specify:
 
 - board_id: 5
 - ip_address field of BrainFlowInputParams structure should contain WiFi Shield Ip address(in direct mode its 192.168.4.1)
 - ip_port field of BrainFlowInputParams structure should be any local port which is free right now
+- optional: timeout field of BrainFlowInputParams structure, default is 10sec
 
 Supported platforms:
 
@@ -252,15 +261,16 @@ CytonDaisy with WiFi Shield
     :width: 400px
     :height: 400px
 
-`WiFi Shield Getting Started Guide from OpenBCI <https://docs.openbci.com/docs/01GettingStarted/01-Boards/WiFiGS>`_.
+`WiFi Shield Getting Started Guide from OpenBCI <https://docs.openbci.com/docs/01GettingStarted/01-Boards/WiFiGS>`_
 
-`WiFi Shield Programming Guide from OpenBCI <https://docs.openbci.com/docs/05ThirdParty/03-WiFiShield/WiFiProgam>`_.
+`WiFi Shield Programming Guide from OpenBCI <https://docs.openbci.com/docs/05ThirdParty/03-WiFiShield/WiFiProgam>`_
 
 To choose this board in BoardShim constructor please specify:
 
 - board_id: 6
 - ip_address field of BrainFlowInputParams structure should contain WiFi Shield Ip address(in direct mode its 192.168.4.1)
 - ip_port field of BrainFlowInputParams structure should be any local port which is free right now
+- optional: timeout field of BrainFlowInputParams structure, default is 10sec
 
 Supported platforms:
 
@@ -276,8 +286,8 @@ Board Spec:
 - communication: TCP socket to read data and HTTP to send commands
 - signal gain: 24
 
-BrainBit Company
------------------
+NeuroMD
+----------
 
 BrainBit
 ~~~~~~~~~~
@@ -286,20 +296,52 @@ BrainBit
     :width: 400px
     :height: 400px
 
-`BrainBit website <https://brainbit.com/>`_.
+`BrainBit website <https://brainbit.com/>`_
 
 To choose this board in BoardShim constructor please specify:
 
 - board_id: 7
-- other_info field of BrainFlowInputParams structure should contain Serial Number of BrainBit device
+- optional: other_info field of BrainFlowInputParams structure should contain Serial Number of BrainBit device, use it if you have multiple devices
+- optional: timeout field of BrainFlowInputParams structure, default is 15sec
 
 Supported platforms:
 
 - Windows >= 10
+- MacOS
 
 Board Spec:
 
 - num eeg channels: 4
 - num acceleration channels: None
+- sampling rate: 250
+- communication: Bluetooth Low Energy
+
+
+G.TEC
+------
+
+Unicorn
+~~~~~~~~~~~
+
+.. image:: https://live.staticflickr.com/65535/49740988577_c54162024d_h.jpg
+    :width: 600px
+    :height: 450px
+
+`Unicorn website <https://www.unicorn-bi.com/>`_
+
+To choose this board in BoardShim constructor please specify:
+
+- board_id: 8
+- optional: other_info field of BrainFlowInputParams structure should contain Serial Number of BrainBit device, use it if you have multiple devices
+
+Supported platforms:
+
+- Ubuntu 18.04, may work on other Linux OSes, it depends on dynamic library provided by Unicorn
+- May also work on Raspberry PI, if you replace libunicorn.so by library provided by Unicorn for Raspberry PI
+
+Board Spec:
+
+- num eeg channels: 8
+- num acceleration channels: 3
 - sampling rate: 250
 - communication: Bluetooth Low Energy

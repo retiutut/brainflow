@@ -27,7 +27,7 @@ def main ():
     parser.add_argument ('--run-time', type = int, help = 'run time for one iteration in sec', required = True)
     parser.add_argument ('--num-iters', type = int, help = 'number of iterations', default = 1)
     parser.add_argument ('--channels', type = str, help = 'channels to plot in format 0,1,2 by default plot all channels', default = None)
-    parser.add_argument ('--config', type = str, help = 'config string', default = None)
+    parser.add_argument ('--config-file', type = str, help = 'file with strings to send to device', default = None)
     args = parser.parse_args ()
 
     params = BrainFlowInputParams ()
@@ -50,8 +50,11 @@ def main ():
 
     board = BoardShim (args.board_id, params)
     board.prepare_session ()
-    if args.config is not None:
-        board.config_board (args.config)
+    if args.config_file:
+        with open (args.config_file) as file:
+            lines = file.readlines ()
+            for line in lines:
+                board.config_board (line)
 
     buffer_size = int (BoardShim.get_sampling_rate (master_board_id) * args.run_time * 1.2) # + 20% for safety
 
@@ -92,8 +95,8 @@ def main ():
             
             timestamp_array = data[timestamp_channel]
             time_diff_array = list ()
-            for i in range (0, timestamp_array.size - 1):
-                time_diff_array.append (timestamp_array[i + 1] - timestamp_array[i])
+            for j in range (0, timestamp_array.size - 1):
+                time_diff_array.append (timestamp_array[j + 1] - timestamp_array[j])
 
 
             package_num_array = data[package_num_channel]
@@ -131,9 +134,9 @@ def main ():
                 for ch in emg_channels:
                     if ch not in temp_channels:
                         temp_channels.append (ch)
-                for i in range (len (temp_channels)):
-                    if i in selected_channels:
-                        total_channels.append (temp_channels[i])
+                for j in range (len (temp_channels)):
+                    if j in selected_channels:
+                        total_channels.append (temp_channels[j])
             else:
                 # for cyton/ganglion eeg_channels and emg_channels are the same array because we can not split it
                 # for novaxr its 2 different arrays, join them
@@ -144,8 +147,8 @@ def main ():
             total_channels.append (timestamp_channel)
 
             columns = list ()
-            for i in range (len (total_channels) - 1):
-                columns.append ('channel_%d' % (int(total_channels[i]) - 1))
+            for j in range (len (total_channels) - 1):
+                columns.append ('channel_%d' % (int(total_channels[j]) - 1))
             columns.append ('timestamp')
 
             df = pd.DataFrame (np.transpose (data))

@@ -1,7 +1,7 @@
 .. _code-samples-label:
 
 Code Samples
-============
+=============
 
 Make sure that you've installed BrainFlow package before running the code samples below.
 
@@ -235,6 +235,73 @@ R Denoising
 
 .. literalinclude:: ../tests/r/denoising.R
    :language: r
+
+Matlab
+--------
+
+Matlab Get Data from a Board
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. literalinclude:: ../matlab-package/brainflow/examples/BrainFlowGetData.m
+   :language: matlab
+
+Matlab Read Write File
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. literalinclude:: ../matlab-package/brainflow/examples/Serialization.m
+   :language: matlab
+
+Matlab Transforms
+~~~~~~~~~~~~~~~~~~
+
+.. literalinclude:: ../matlab-package/brainflow/examples/Transforms.m
+   :language: matlab
+
+Matlab Signal Filtering
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. literalinclude:: ../matlab-package/brainflow/examples/SignalFiltering.m
+   :language: matlab
+
+Matlab Denoising
+~~~~~~~~~~~~~~~~~
+
+.. literalinclude:: ../matlab-package/brainflow/examples/Denoising.m
+   :language: matlab
+
+Julia
+--------
+
+Julia Get Data from a Board
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. literalinclude:: ../julia-package/brainflow/test/brainflow_get_data.jl
+   :language: julia
+
+Julia Read Write File
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. literalinclude:: ../julia-package/brainflow/test/serialization.jl
+   :language: julia
+
+Julia Transforms
+~~~~~~~~~~~~~~~~~~
+
+.. literalinclude:: ../julia-package/brainflow/test/transforms.jl
+   :language: julia
+
+Julia Signal Filtering
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. literalinclude:: ../julia-package/brainflow/test/signal_filtering.jl
+   :language: julia
+
+Julia Denoising
+~~~~~~~~~~~~~~~~~
+
+.. literalinclude:: ../julia-package/brainflow/test/denoising.jl
+   :language: julia
+
 
 Notebooks
 ------------

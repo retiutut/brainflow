@@ -25,6 +25,7 @@ class BoardIds (enum.Enum):
     CYTON_WIFI_BOARD = 5 #:
     CYTON_DAISY_WIFI_BOARD = 6 #:
     BRAINBIT_BOARD = 7 #:
+    UNICORN_BOARD = 8 #:
 
 
 class LogLevels (enum.Enum):
@@ -70,6 +71,7 @@ class BrainFlowInputParams (object):
         self.ip_port = 0
         self.ip_protocol = IpProtocolType.NONE.value
         self.other_info = ''
+        self.timeout = 0
 
     def to_json (self):
         return json.dumps (self, default = lambda o: o.__dict__,
@@ -119,6 +121,11 @@ class BoardControllerDLL (object):
                 os.environ['PATH'] = dir_path + os.pathsep + os.environ.get ('PATH', '')
             else:
                 os.environ['LD_LIBRARY_PATH'] = dir_path + os.pathsep + os.environ.get ('LD_LIBRARY_PATH', '')
+            # for MacOS there are a few more env vars to search for libraries
+            if platform.system () == 'Darwin':
+                os.environ['DYLD_LIBRARY_PATH '] = dir_path + os.pathsep + os.environ.get ('DYLD_LIBRARY_PATH ', '')
+                os.environ['DYLD_FALLBACK_LIBRARY_PATH '] = dir_path + os.pathsep + os.environ.get ('DYLD_FALLBACK_LIBRARY_PATH ', '')
+                ctypes.cdll.LoadLibrary (pkg_resources.resource_filename (__name__, 'lib/libneurosdk-shared.dylib'))
             self.lib = ctypes.cdll.LoadLibrary (full_path)
         else:
             raise FileNotFoundError ('Dynamic library %s is missed, did you forget to compile brainflow before installation of python package?' % full_path)
@@ -247,6 +254,14 @@ class BoardControllerDLL (object):
         self.get_num_rows.restype = ctypes.c_int
         self.get_num_rows.argtypes = [
             ctypes.c_int,
+            ndpointer (ctypes.c_int32)
+        ]
+
+        self.get_eeg_names = self.lib.get_eeg_names
+        self.get_eeg_names.restype = ctypes.c_int
+        self.get_eeg_names.argtypes = [
+            ctypes.c_int,
+            ndpointer (ctypes.c_ubyte),
             ndpointer (ctypes.c_int32)
         ]
 
@@ -504,6 +519,23 @@ class BoardShim (object):
         if res != BrainflowExitCodes.STATUS_OK.value:
             raise BrainFlowError ('unable to request info about this board', res)
         return int (timestamp_channel[0])
+
+    @classmethod
+    def get_eeg_names (cls, board_id):
+        """get names of EEG channels in 10-20 system if their location is fixed
+
+        :param board_id: Board Id
+        :type board_id: int
+        :return: EEG channels names
+        :rtype: list
+        :raises BrainFlowError: If this board has no such data exit code is UNSUPPORTED_BOARD_ERROR
+        """
+        string = numpy.zeros (4096).astype (numpy.ubyte)
+        string_len = numpy.zeros (1).astype (numpy.int32)
+        res = BoardControllerDLL.get_instance ().get_eeg_names (board_id, string, string_len)
+        if res != BrainflowExitCodes.STATUS_OK.value:
+            raise BrainFlowError ('unable to request info about this board', res)
+        return string.tobytes ().decode ('utf-8')[0:string_len[0]].split (',')
 
     @classmethod
     def get_eeg_channels (cls, board_id):

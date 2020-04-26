@@ -1,6 +1,7 @@
 #pragma once
 
 #include "board_controller.h"
+#include "brainflow_input_params.h"
 #include "data_buffer.h"
 #include "spdlog/spdlog.h"
 #include "streamer.h"
@@ -23,6 +24,12 @@ public:
         {
             delete db;
             db = NULL;
+        }
+
+        if (streamer != NULL)
+        {
+            delete streamer;
+            streamer = NULL;
         }
     }
     Board (int board_id, struct BrainFlowInputParams params)

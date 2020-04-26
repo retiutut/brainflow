@@ -5,18 +5,19 @@
 #include "board.h"
 #include "board_controller.h"
 
-#ifdef _WIN32
-#include "c_eeg_channels.h"
+#if defined _WIN32 || defined __APPLE__
+#include "csignal-channel.h"
 #include "cdevice.h"
+#include "clistener.h"
 #endif
 
 class BrainBit : public Board
 {
 
 private:
-    // as for now BrainBit supports only windows, to dont write ifdef in board_controller.cpp and
-    // dont change CmakeLists.txt add dummy implementation for Unix
-#ifdef _WIN32
+    // as for now BrainBit supports only windows and macos, to dont write ifdef in
+    // board_controller.cpp add dummy implementation for linux
+#if defined _WIN32 || defined __APPLE__
     volatile bool keep_alive;
     bool initialized;
     bool is_streaming;
@@ -31,23 +32,23 @@ private:
 
     void read_thread ();
 
-    int find_device (long long serial_number);
-    int find_device_info (
-        DeviceEnumerator *enumerator, uint64_t serial_number, DeviceInfo *out_device_info);
+    int find_device ();
+    int find_device_info (DeviceEnumerator *enumerator, DeviceInfo *out_device_info);
     int connect_device ();
     void free_listeners ();
     void free_device ();
     void free_channels ();
+    void free_listener (ListenerHandle lh);
 
     ListenerHandle battery_listener;
     ListenerHandle resistance_listener_t3;
     ListenerHandle resistance_listener_t4;
     ListenerHandle resistance_listener_o1;
     ListenerHandle resistance_listener_o2;
-    EegDoubleChannel *signal_t4;
-    EegDoubleChannel *signal_t3;
-    EegDoubleChannel *signal_o1;
-    EegDoubleChannel *signal_o2;
+    SignalDoubleChannel *signal_t4;
+    SignalDoubleChannel *signal_t3;
+    SignalDoubleChannel *signal_o1;
+    SignalDoubleChannel *signal_o2;
 
 #endif
 
@@ -61,7 +62,7 @@ public:
     int release_session ();
     int config_board (char *config);
 
-#ifdef _WIN32
+#if defined _WIN32 || defined __APPLE__
     // callbacks must be public since they are called from plain C callbacks
     void on_battery_charge_received (
         Device *device, ChannelInfo channel_info, IntDataArray battery_data);

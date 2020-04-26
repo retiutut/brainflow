@@ -33,7 +33,9 @@ setup (
             os.path.join ('lib', 'libDataHandler.so'),
             os.path.join ('lib', 'libDataHandler.dylib'),
             os.path.join ('lib', 'neurosdk-x64.dll'),
-            os.path.join ('lib', 'neurosdk-x86.dll')
+            os.path.join ('lib', 'neurosdk-x86.dll'),
+            os.path.join ('lib', 'libneurosdk-shared.dylib'),
+            os.path.join ('lib', 'libunicorn.so')
         ]
     },
     zip_safe = True,
