@@ -31,7 +31,7 @@ Methods like:
 
 **Return 2d double array [num_channels x num_data_points], rows of this array represent different channels like  EEG channels, EMG channels, Accel channels, Timesteps and so on, while columns in this array represent actual packages from a board.**
 
-Exact format for this array is board specific. To keep the API uniform. we have methods like:
+Exact format for this array is board specific. To keep the API uniform, we have methods like:
 
 .. code-block:: python
 
@@ -92,15 +92,3 @@ Check this example for details:
 
 .. literalinclude:: ../tests/python/cyton_analog_mode_other_data.py
    :language: py
-
-NeuroMD Specific Data
------------------------
-
-BrainBit
-~~~~~~~~~~
-
-For BrainBit we write resistance data to:
-
-.. code-block:: python
-
-   get_other_channels (board_id)

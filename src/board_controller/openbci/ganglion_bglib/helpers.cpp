@@ -8,7 +8,7 @@
 #include "helpers.h"
 #include "uart.h"
 
-#include "ganglion_interface.h"
+#include "ganglion_types.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -82,7 +82,8 @@ namespace GanglionLib
         exit_code = (int)GanglionLib::SYNC_ERROR;
         // send command to connect
         state = State::INITIAL_CONNECTION;
-        ble_cmd_gap_connect_direct (&connect_addr, gap_address_type_random, 40, 60, 100, 0);
+        // changing values here leads to package loss, dont touch it
+        ble_cmd_gap_connect_direct (&connect_addr, gap_address_type_random, 10, 76, 100, 0);
         int res = wait_for_callback (timeout);
         if (res != (int)GanglionLib::STATUS_OK)
         {

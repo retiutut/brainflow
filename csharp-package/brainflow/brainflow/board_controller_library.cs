@@ -16,26 +16,26 @@ namespace brainflow
     public enum CustomExitCodes
     {
         STATUS_OK = 0,
-        PORT_ALREADY_OPEN_ERROR,
-        UNABLE_TO_OPEN_PORT_ERROR,
-        SET_PORT_ERROR,
-        BOARD_WRITE_ERROR,
-        INCOMMING_MSG_ERROR,
-        INITIAL_MSG_ERROR,
-        BOARD_NOT_READY_ERROR,
-        STREAM_ALREADY_RUN_ERROR,
-        INVALID_BUFFER_SIZE_ERROR,
-        STREAM_THREAD_ERROR,
-        STREAM_THREAD_IS_NOT_RUNNING,
-        EMPTY_BUFFER_ERROR,
-        INVALID_ARGUMENTS_ERROR,
-        UNSUPPORTED_BOARD_ERROR,
-        BOARD_NOT_CREATED_ERROR,
-        ANOTHER_BOARD_IS_CREATED_ERROR,
-        GENERAL_ERROR,
-        SYNC_TIMEOUT_ERROR,
-        JSON_NOT_FOUND_ERROR,
-        NO_SUCH_DATA_IN_JSON_ERROR
+        PORT_ALREADY_OPEN_ERROR = 1,
+        UNABLE_TO_OPEN_PORT_ERROR = 2,
+        SET_PORT_ERROR = 3,
+        BOARD_WRITE_ERROR = 4,
+        INCOMMING_MSG_ERROR = 5,
+        INITIAL_MSG_ERROR = 6,
+        BOARD_NOT_READY_ERROR = 7,
+        STREAM_ALREADY_RUN_ERROR= 8,
+        INVALID_BUFFER_SIZE_ERROR = 9,
+        STREAM_THREAD_ERROR = 10,
+        STREAM_THREAD_IS_NOT_RUNNING = 11,
+        EMPTY_BUFFER_ERROR = 12,
+        INVALID_ARGUMENTS_ERROR = 13,
+        UNSUPPORTED_BOARD_ERROR = 14,
+        BOARD_NOT_CREATED_ERROR = 15,
+        ANOTHER_BOARD_IS_CREATED_ERROR = 16,
+        GENERAL_ERROR = 17,
+        SYNC_TIMEOUT_ERROR = 18,
+        JSON_NOT_FOUND_ERROR = 19,
+        NO_SUCH_DATA_IN_JSON_ERROR = 20
     };
 
     public enum BoardIds
@@ -50,7 +50,12 @@ namespace brainflow
         CYTON_WIFI_BOARD = 5,
         CYTON_DAISY_WIFI_BOARD = 6,
         BRAINBIT_BOARD = 7,
-        UNICORN_BOARD = 8
+        UNICORN_BOARD = 8,
+        CALLIBRI_EEG_BOARD = 9,
+        CALLIBRI_EMG_BOARD = 10,
+        CALLIBRI_ECG_BOARD = 11,
+        FASCIA_BOARD = 12,
+        NOTION_OSC_BOARD = 13
     };
 
 
@@ -118,6 +123,8 @@ namespace brainflow
         public static extern int is_prepared(int[] prepared, int board_id, string input_json);
         [DllImport("BoardController.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int get_eeg_names(int board_id, byte[] eeg_names, int[] len);
+        [DllImport("BoardController.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int get_resistance_channels(int board_id, int[] channels, int[] len);
     }
 
     public static class BoardControllerLibrary32
@@ -180,6 +187,8 @@ namespace brainflow
         public static extern int is_prepared(int[] prepared, int board_id, string input_json);
         [DllImport("BoardController32.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int get_eeg_names(int board_id, byte[] eeg_names, int[] len);
+        [DllImport("BoardController32.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int get_resistance_channels(int board_id, int[] channels, int[] len);
     }
 
     public static class BoardControllerLibrary
@@ -414,6 +423,14 @@ namespace brainflow
                 return BoardControllerLibrary64.get_temperature_channels (board_id, channels, len);
             else
                 return BoardControllerLibrary32.get_temperature_channels (board_id, channels, len);
+        }
+
+        public static int get_resistance_channels(int board_id, int[] channels, int[] len)
+        {
+            if (System.Environment.Is64BitProcess)
+                return BoardControllerLibrary64.get_resistance_channels(board_id, channels, len);
+            else
+                return BoardControllerLibrary32.get_resistance_channels(board_id, channels, len);
         }
     }
 }

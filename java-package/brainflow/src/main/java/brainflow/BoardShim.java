@@ -73,6 +73,8 @@ public class BoardShim
 
         int get_other_channels (int board_id, int[] other_channels, int[] len);
 
+        int get_resistance_channels (int board_id, int[] channels, int[] len);
+
         int get_temperature_channels (int board_id, int[] temperature_channels, int[] len);
 
         int is_prepared (int[] prepared, int board_id, String params);
@@ -84,25 +86,36 @@ public class BoardShim
 
     static
     {
+        // SystemUtils doesnt have smth like IS_OS_ANDROID, need to check using
+        // properties
+        boolean is_os_android = "The Android Project".equals (System.getProperty ("java.specification.vendor"));
+
         String lib_name = "libBoardController.so";
+        String ganglion_name = "libGanglionLib.so";
         if (SystemUtils.IS_OS_WINDOWS)
         {
             lib_name = "BoardController.dll";
+            ganglion_name = "GanglionLib.dll";
             unpack_from_jar ("neurosdk-x64.dll");
 
         } else if (SystemUtils.IS_OS_MAC)
         {
             lib_name = "libBoardController.dylib";
-            Path location = unpack_from_jar ("libneurosdk-shared.dylib");
-            if (location != null)
-            {
-                System.load (location.toString ());
-            }
+            ganglion_name = "libGanglionLib.dylib";
+            unpack_from_jar ("libneurosdk-shared.dylib");
         }
 
-        // need to extract libraries from jar
-        unpack_from_jar (lib_name);
-        unpack_from_jar ("brainflow_boards.json");
+        if (is_os_android)
+        {
+            // for android you need to put these files manually to jniLibs folder, unpacking
+            // doesnt work
+            lib_name = "BoardController"; // no lib prefix and no extension for android
+        } else
+        {
+            // need to extract libraries from jar
+            unpack_from_jar (lib_name);
+            unpack_from_jar (ganglion_name);
+        }
 
         instance = (DllInterface) Native.loadLibrary (lib_name, DllInterface.class);
     }
@@ -334,6 +347,23 @@ public class BoardShim
         int[] len = new int[1];
         int[] channels = new int[512];
         int ec = instance.get_temperature_channels (board_id, channels, len);
+        if (ec != ExitCode.STATUS_OK.get_code ())
+        {
+            throw new BrainFlowError ("Error in board info getter", ec);
+        }
+
+        return Arrays.copyOfRange (channels, 0, len[0]);
+    }
+
+    /**
+     * get row indices in returned by get_board_data() 2d array which contains
+     * resistance data
+     */
+    public static int[] get_resistance_channels (int board_id) throws BrainFlowError
+    {
+        int[] len = new int[1];
+        int[] channels = new int[512];
+        int ec = instance.get_resistance_channels (board_id, channels, len);
         if (ec != ExitCode.STATUS_OK.get_code ())
         {
             throw new BrainFlowError ("Error in board info getter", ec);

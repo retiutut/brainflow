@@ -5,10 +5,11 @@
 #include <string.h>
 
 #include "cmd_def.h"
-#include "ganglion_interface.h"
+#include "ganglion_types.h"
 #include "helpers.h"
 #include "timestamp.h"
 #include "uart.h"
+
 
 #define GANGLION_SERVICE_UUID 0xfe84
 #define CLIENT_CHARACTERISTIC_UUID 0x2902
@@ -91,8 +92,9 @@ void ble_evt_connection_status (const struct ble_msg_connection_status_evt_t *ms
 void ble_evt_connection_disconnected (const struct ble_msg_connection_disconnected_evt_t *msg)
 {
     // atempt to reconnect
+    // changing values here leads to package loss, dont touch it
     ble_cmd_gap_connect_direct (
-        &GanglionLib::connect_addr, gap_address_type_random, 40, 60, 100, 0);
+        &GanglionLib::connect_addr, gap_address_type_random, 10, 76, 100, 0);
 }
 
 // ble_evt_attclient_group_found and ble_evt_attclient_procedure_completed are called after the same
@@ -188,12 +190,9 @@ void ble_evt_attclient_find_information_found (
 
 void ble_evt_attclient_attribute_value (const struct ble_msg_attclient_attribute_value_evt_t *msg)
 {
-    if (((int)msg->value.len >= 18) && ((int)msg->value.len <= 20))
-    {
-        unsigned char values[20] = {0};
-        memcpy (values, msg->value.data, msg->value.len * sizeof (unsigned char));
-        double timestamp = get_timestamp ();
-        struct GanglionLib::GanglionData data (values, timestamp);
-        GanglionLib::data_queue.push (data);
-    }
+    unsigned char values[20] = {0};
+    memcpy (values, msg->value.data, msg->value.len * sizeof (unsigned char));
+    double timestamp = get_timestamp ();
+    struct GanglionLib::GanglionData data (values, timestamp);
+    GanglionLib::data_queue.push (data);
 }

@@ -1,4 +1,5 @@
 #include "serial.h"
+#include <string>
 #ifndef _WIN32
 #include <fcntl.h>
 #include <unistd.h>
@@ -11,7 +12,13 @@
 #ifdef _WIN32
 Serial::Serial (const char *port_name)
 {
-    strcpy (this->port_name, port_name);
+    std::string port_name_string (port_name);
+    // add winapi specific prefix for port name if not provided
+    if (port_name_string.find (std::string ("COM")) == 0)
+    {
+        port_name_string = std::string ("\\\\.\\") + port_name_string;
+    }
+    strcpy (this->port_name, port_name_string.c_str ());
     port_descriptor = NULL;
 }
 
@@ -135,7 +142,7 @@ int Serial::set_serial_port_settings (int ms_timeout)
     port_settings.c_oflag = 0;
     port_settings.c_lflag = 0;
     port_settings.c_cc[VMIN] = 0;
-    port_settings.c_cc[VTIME] = ms_timeout / 10;
+    port_settings.c_cc[VTIME] = ms_timeout / 100; // vtime is in tenths of a second
 
     if (tcsetattr (this->port_descriptor, TCSANOW, &port_settings) != 0)
         return SerialExitCodes::SET_PORT_STATE_ERROR;

@@ -2,11 +2,13 @@
 
 #include <condition_variable>
 #include <mutex>
+#include <string>
 #include <thread>
 
 #include "board.h"
 #include "board_controller.h"
 #include "data_buffer.h"
+#include "runtime_dll_loader.h"
 
 
 class Ganglion : public Board
@@ -17,8 +19,11 @@ private:
 
     bool is_valid;
 
-    float const accel_scale = 0.032f;
+    float const accel_scale = 0.016f;
     float const eeg_scale = (1.2f * 1000000) / (8388607.0f * 1.5f * 51.0f);
+
+    std::string start_command;
+    std::string stop_command;
 
     volatile bool keep_alive;
     bool initialized;
@@ -43,6 +48,8 @@ private:
 
     void read_thread ();
     int start_streaming_prepared ();
+
+    DLLLoader *dll_loader;
 
 public:
     Ganglion (struct BrainFlowInputParams params);

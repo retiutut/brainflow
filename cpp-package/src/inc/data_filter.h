@@ -55,9 +55,10 @@ public:
      * perform direct fft
      * @param data input array
      * @param data_len must be power of 2
+     * @param window window function
      * @return complex array with size data_len / 2 + 1, it holds only positive im values
      */
-    static std::complex<double> *perform_fft (double *data, int data_len);
+    static std::complex<double> *perform_fft (double *data, int data_len, int window);
     /**
      * perform inverse fft
      * @param data complex array from perform_fft
@@ -65,7 +66,73 @@ public:
      * @return restored data
      */
     static double *perform_ifft (std::complex<double> *data, int data_len);
-
+    /**
+     * calculate nearest power of 2
+     * @param value input value
+     * @return nearest power of 2
+     */
+    static int get_nearest_power_of_two (int value);
+    /**
+     * calculate PSD
+     * @param data input array
+     * @param data_len must be power of 2
+     * @param sampling_rate sampling rate
+     * @param window window function
+     * @return pair of amplitude and freq arrays of size data_len / 2 + 1
+     */
+    static std::pair<double *, double *> get_psd (
+        double *data, int data_len, int sampling_rate, int window);
+    /**
+     * subtract trend from data
+     * @param data input array
+     * @param data_len
+     * @param detrend_operation use DetrendOperations enum
+     */
+    static void detrend (double *data, int data_len, int detrend_operation);
+    /**
+     * calculate log PSD
+     * @param data input array
+     * @param data_len must be power of 2
+     * @param sampling_rate sampling rate
+     * @param window window function
+     * @return pair of log10(amplitude) and freq arrays of size data_len / 2 + 1
+     */
+    static std::pair<double *, double *> get_log_psd (
+        double *data, int data_len, int sampling_rate, int window);
+    /**
+     * calculate PSD using Welch method
+     * @param data input array
+     * @param data_len length of input data
+     * @param nfft FFT window size, must be power of two
+     * @param overlap FFT window overlap, must be between 0 and nfft
+     * @param sampling_rate sampling rate
+     * @param window window function
+     * @return pair of amplitude and freq arrays of size data_len / 2 + 1
+     */
+    static std::pair<double *, double *> get_psd_welch (
+        double *data, int data_len, int nfft, int overlap, int sampling_rate, int window);
+    /**
+     * calculate log PSD using Welch method
+     * @param data input array
+     * @param data_len length of input data
+     * @param nfft FFT window size, must be power of two
+     * @param overlap FFT window overlap, must be between 0 and nfft
+     * @param sampling_rate sampling rate
+     * @param window window function
+     * @return pair of amplitude and freq arrays of size data_len / 2 + 1
+     */
+    static std::pair<double *, double *> get_log_psd_welch (
+        double *data, int data_len, int nfft, int overlap, int sampling_rate, int window);
+    /**
+     * calculate band power
+     * @param psd psd calculated using get_psd or get_log_psd
+     * @param data_len len of ampl and freq arrays: N / 2 + 1 where N is FFT size
+     * @param freq_start lowest frequency
+     * @param freq_end highest frequency
+     * @return band power
+     */
+    static double get_band_power (
+        std::pair<double *, double *> psd, int data_len, double freq_start, double freq_end);
 
     /// write file, in file data will be transposed
     static void write_file (

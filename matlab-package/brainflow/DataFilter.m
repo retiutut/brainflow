@@ -74,6 +74,15 @@ classdef DataFilter
             filtered_data = temp.Value;
         end
         
+        function new_data = detrend(data, operation)
+            task_name = 'detrend';
+            temp = libpointer ('doublePtr', data);
+            lib_name = DataFilter.load_lib ();
+            exit_code = calllib (lib_name, task_name, temp, size (data, 2), int32 (operation));
+            DataFilter.check_ec (exit_code, task_name);
+            new_data = temp.Value;
+        end
+        
         function downsampled_data = perform_downsampling (data, period, operation)
             task_name = 'perform_downsampling';
             temp_input = libpointer ('doublePtr', data);
@@ -116,7 +125,7 @@ classdef DataFilter
             denoised_data = temp.Value;
         end
         
-        function fft_data = perform_fft (data)
+        function fft_data = perform_fft (data, window)
             task_name = 'perform_fft';
             n = size (data, 2);
             if (bitand (n, n - 1) ~= 0)
@@ -126,11 +135,11 @@ classdef DataFilter
             lib_name = DataFilter.load_lib ();
             temp_re = libpointer ('doublePtr', zeros (1, int32 (n / 2 + 1)));
             temp_im = libpointer ('doublePtr', zeros (1, int32 (n / 2 + 1)));
-            exit_code = calllib (lib_name, task_name, temp_input, n, temp_re, temp_im);
+            exit_code = calllib (lib_name, task_name, temp_input, n, window, temp_re, temp_im);
             DataFilter.check_ec (exit_code, task_name);
             fft_data = complex (temp_re.Value, temp_im.Value);
         end
-        
+
         function data = perform_ifft (fft_data)
             task_name = 'perform_ifft';
             real_data = real (fft_data);
@@ -145,6 +154,88 @@ classdef DataFilter
             data = output.Value;
         end
         
+        function [ampls, freqs] = get_psd (data, sampling_rate, window)
+            task_name = 'get_psd';
+            n = size (data, 2);
+            if (bitand (n, n - 1) ~= 0)
+                error ('For FFT shape must be power of 2!');
+            end
+            temp_input = libpointer ('doublePtr', data);
+            lib_name = DataFilter.load_lib ();
+            temp_ampls = libpointer ('doublePtr', zeros (1, int32 (n / 2 + 1)));
+            temp_freqs = libpointer ('doublePtr', zeros (1, int32 (n / 2 + 1)));
+            exit_code = calllib (lib_name, task_name, temp_input, n, sampling_rate, window, temp_ampls, temp_freqs);
+            DataFilter.check_ec (exit_code, task_name);
+            ampls = temp_ampls.Value;
+            freqs = temp_freqs.Value;
+        end
+        
+        function [ampls, freqs] = get_log_psd (data, sampling_rate, window)
+            task_name = 'get_log_psd';
+            n = size (data, 2);
+            if (bitand (n, n - 1) ~= 0)
+                error ('For FFT shape must be power of 2!');
+            end
+            temp_input = libpointer ('doublePtr', data);
+            lib_name = DataFilter.load_lib ();
+            temp_ampls = libpointer ('doublePtr', zeros (1, int32 (n / 2 + 1)));
+            temp_freqs = libpointer ('doublePtr', zeros (1, int32 (n / 2 + 1)));
+            exit_code = calllib (lib_name, task_name, temp_input, n, sampling_rate, window, temp_ampls, temp_freqs);
+            DataFilter.check_ec (exit_code, task_name);
+            ampls = temp_ampls.Value;
+            freqs = temp_freqs.Value;
+        end
+        
+        function [ampls, freqs] = get_psd_welch (data, nfft, overlap, sampling_rate, window)
+            task_name = 'get_psd_welch';
+            if (bitand (nfft, nfft - 1) ~= 0)
+                error ('nfft must be power of 2!');
+            end
+            temp_input = libpointer ('doublePtr', data);
+            lib_name = DataFilter.load_lib ();
+            temp_ampls = libpointer ('doublePtr', zeros (1, int32 (nfft / 2 + 1)));
+            temp_freqs = libpointer ('doublePtr', zeros (1, int32 (nfft / 2 + 1)));
+            exit_code = calllib (lib_name, task_name, temp_input, size (data, 2), nfft, overlap, sampling_rate, window, temp_ampls, temp_freqs);
+            DataFilter.check_ec (exit_code, task_name);
+            ampls = temp_ampls.Value;
+            freqs = temp_freqs.Value;
+        end
+        
+        function [ampls, freqs] = get_log_psd_welch (data, nfft, overlap, sampling_rate, window)
+            task_name = 'get_log_psd_welch';
+            if (bitand (nfft, nfft - 1) ~= 0)
+                error ('For FFT shape must be power of 2!');
+            end
+            temp_input = libpointer ('doublePtr', data);
+            lib_name = DataFilter.load_lib ();
+            temp_ampls = libpointer ('doublePtr', zeros (1, int32 (nfft / 2 + 1)));
+            temp_freqs = libpointer ('doublePtr', zeros (1, int32 (nfft / 2 + 1)));
+            exit_code = calllib (lib_name, task_name, temp_input, size (data, 2), nfft, overlap, sampling_rate, window, temp_ampls, temp_freqs);
+            DataFilter.check_ec (exit_code, task_name);
+            ampls = temp_ampls.Value;
+            freqs = temp_freqs.Value;
+        end
+        
+        function band_power = get_band_power (ampls, freqs, freq_start, freq_end)
+            task_name = 'get_band_power';
+            temp_input_ampl = libpointer ('doublePtr', ampls);
+            temp_input_freq = libpointer ('doublePtr', freqs);
+            lib_name = DataFilter.load_lib ();
+            temp_band = libpointer ('doublePtr', 0);
+            exit_code = calllib (lib_name, task_name, temp_input_ampl, temp_input_freq, size (ampls, 2), freq_start, freq_end, temp_band);
+            DataFilter.check_ec (exit_code, task_name);
+            band_power = temp_band.Value;
+        end
+
+        function output = get_nearest_power_of_two (value)
+            lib_name = DataFilter.load_lib ();
+            task_name = 'get_nearest_power_of_two';
+            power_of_two = libpointer ('int32Ptr', 0);
+            exit_code = calllib (lib_name, task_name, value, power_of_two);
+            DataFilter.check_ec (exit_code, task_name);
+            output = power_of_two.Value;
+        end
+
         function write_file (data, file_name, file_mode)
             task_name = 'write_file';
             lib_name = DataFilter.load_lib ();

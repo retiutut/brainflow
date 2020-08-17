@@ -1,4 +1,6 @@
-# BrainFlow
+<p align="center">
+    <img width="400" height="160" src="https://live.staticflickr.com/65535/49908747533_f359f83610_w.jpg">
+</p>
 
 BrainFlow is a library intended to obtain, parse and analyze EEG, EMG, ECG and other kinds of data from biosensors.
 
@@ -21,9 +23,11 @@ BrainFlow is a library intended to obtain, parse and analyze EEG, EMG, ECG and o
 
 ## [BrainFlow's slack workspace](https://openbraintalk.slack.com/), use this [link to join](https://c6ber255cc.execute-api.eu-west-1.amazonaws.com/Express/)
 
-## Build status
+## Build Status
+
 Compiled with:
 * MSVC on Windows
+* Android NDK with Ninja
 * GCC on Linux
 * Clang on MacOS
 
@@ -31,11 +35,12 @@ Compiled with:
 
 [![Build Status](https://travis-ci.com/OpenBCI/brainflow.svg?branch=master)](https://travis-ci.com/OpenBCI/brainflow)
 
-*Windows(AppVeyour)*:
+*Windows and Android NDK(AppVeyour)*:
 
 [![Build status](https://ci.appveyor.com/api/projects/status/kuuoa32me3253jad/branch/master?svg=true)](https://ci.appveyor.com/project/daniellasry/brainflow/branch/master)
 
 ## Brainflow Bindings
+
 We support bindings for:
 * [Python](./python-package)
 * [Java](./java-package/brainflow/)
@@ -44,6 +49,10 @@ We support bindings for:
 * [C# (Windows only)](./csharp-package/brainflow/)
 * [Matlab](./matlab-package/brainflow)
 * [Julia](.julia-package/brainflow)
+
+## Partners and Sponsors
+
+[![OpenBCI](https://live.staticflickr.com/65535/49913349191_0cbd41157c_w.jpg)](https://openbci.com/)
 
 ## License: 
 MIT

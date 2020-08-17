@@ -19,7 +19,8 @@ setup (
     author_email = 'a1994ndrey@gmail.com',
     packages = find_packages (),
     install_requires = [
-        'numpy'
+        'numpy',
+        'nptyping'
     ],
     package_data = {
         'brainflow': [
@@ -27,7 +28,6 @@ setup (
             os.path.join ('lib', 'BoardController32.dll'),
             os.path.join ('lib', 'libBoardController.so'),
             os.path.join ('lib', 'libBoardController.dylib'),
-            os.path.join ('lib', 'brainflow_boards.json'),
             os.path.join ('lib', 'DataHandler.dll'),
             os.path.join ('lib', 'DataHandler32.dll'),
             os.path.join ('lib', 'libDataHandler.so'),
@@ -35,9 +35,13 @@ setup (
             os.path.join ('lib', 'neurosdk-x64.dll'),
             os.path.join ('lib', 'neurosdk-x86.dll'),
             os.path.join ('lib', 'libneurosdk-shared.dylib'),
-            os.path.join ('lib', 'libunicorn.so')
+            os.path.join ('lib', 'libunicorn.so'),
+            os.path.join ('lib', 'GanglionLib.dll'),
+            os.path.join ('lib', 'GanglionLib32.dll'),
+            os.path.join ('lib', 'libGanglionLib.so'),
+            os.path.join ('lib', 'libGanglionLib.dylib')
         ]
     },
     zip_safe = True,
-    python_requires = '>=3.0'
+    python_requires = '>=3.5.6'
 )

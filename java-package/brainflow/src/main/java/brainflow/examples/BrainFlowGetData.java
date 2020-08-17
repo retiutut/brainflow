@@ -1,7 +1,5 @@
 package brainflow.examples;
 
-import brainflow.*;
-
 import java.util.Arrays;
 
 import brainflow.BoardShim;
@@ -68,6 +66,10 @@ public class BrainFlowGetData
             if (args[i].equals ("--timeout"))
             {
                 params.timeout = Integer.parseInt (args[i + 1]);
+            }
+            if (args[i].equals ("--serial-number"))
+            {
+                params.serial_number = args[i + 1];
             }
         }
         return board_id;

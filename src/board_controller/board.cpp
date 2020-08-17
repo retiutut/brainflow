@@ -8,10 +8,15 @@
 
 #include "spdlog/sinks/null_sink.h"
 
-
 #define LOGGER_NAME "brainflow_logger"
 
+#ifdef __ANDROID__
+#include "spdlog/sinks/android_sink.h"
+std::shared_ptr<spdlog::logger> Board::board_logger =
+    spdlog::android_logger (LOGGER_NAME, "brainflow_ndk_logger");
+#else
 std::shared_ptr<spdlog::logger> Board::board_logger = spdlog::stderr_logger_mt (LOGGER_NAME);
+#endif
 
 int Board::set_log_level (int level)
 {
@@ -24,22 +29,41 @@ int Board::set_log_level (int level)
     {
         log_level = 0;
     }
-    Board::board_logger->set_level (spdlog::level::level_enum (log_level));
-    Board::board_logger->flush_on (spdlog::level::level_enum (log_level));
-    return STATUS_OK;
+    try
+    {
+        Board::board_logger->set_level (spdlog::level::level_enum (log_level));
+        Board::board_logger->flush_on (spdlog::level::level_enum (log_level));
+    }
+    catch (...)
+    {
+        return (int)BrainFlowExitCodes::GENERAL_ERROR;
+    }
+    return (int)BrainFlowExitCodes::STATUS_OK;
 }
 
 int Board::set_log_file (char *log_file)
 {
-    spdlog::level::level_enum level = Board::board_logger->level ();
-    Board::board_logger = spdlog::create<spdlog::sinks::null_sink_st> (
-        "null_logger"); // to dont set logger to nullptr and avoid raice condition
-    spdlog::drop (LOGGER_NAME);
-    Board::board_logger = spdlog::basic_logger_mt (LOGGER_NAME, log_file);
-    Board::board_logger->set_level (level);
-    Board::board_logger->flush_on (level);
-    spdlog::drop ("null_logger");
-    return STATUS_OK;
+#ifdef __ANDROID__
+    Board::board_logger->error ("For Android set_log_file is unavailable");
+    return (int)BrainFlowExitCodes::GENERAL_ERROR;
+#else
+    try
+    {
+        spdlog::level::level_enum level = Board::board_logger->level ();
+        Board::board_logger = spdlog::create<spdlog::sinks::null_sink_st> (
+            "null_logger"); // to dont set logger to nullptr and avoid raice condition
+        spdlog::drop (LOGGER_NAME);
+        Board::board_logger = spdlog::basic_logger_mt (LOGGER_NAME, log_file);
+        Board::board_logger->set_level (level);
+        Board::board_logger->flush_on (level);
+        spdlog::drop ("null_logger");
+    }
+    catch (...)
+    {
+        return (int)BrainFlowExitCodes::GENERAL_ERROR;
+    }
+    return (int)BrainFlowExitCodes::STATUS_OK;
+#endif
 }
 
 int Board::prepare_streamer (char *streamer_params)
@@ -65,21 +89,23 @@ int Board::prepare_streamer (char *streamer_params)
         {
             safe_logger (
                 spdlog::level::err, "format is streamer_type://streamer_dest:streamer_args");
-            return INVALID_ARGUMENTS_ERROR;
+            return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
         }
         std::string streamer_type = streamer_params_str.substr (0, idx1);
-        size_t idx2 = streamer_params_str.find (":", idx1 + 3);
-        if (idx2 == std::string::npos)
+        size_t idx2 = streamer_params_str.find_last_of (":", std::string::npos);
+        if ((idx2 == std::string::npos) || (idx1 == idx2))
         {
             safe_logger (
                 spdlog::level::err, "format is streamer_type://streamer_dest:streamer_args");
-            return INVALID_ARGUMENTS_ERROR;
+            return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
         }
         std::string streamer_dest = streamer_params_str.substr (idx1 + 3, idx2 - idx1 - 3);
         std::string streamer_mods = streamer_params_str.substr (idx2 + 1);
 
         if (streamer_type == "file")
         {
+            safe_logger (spdlog::level::trace, "File Streamer, file: {}, mods: {}",
+                streamer_dest.c_str (), streamer_mods.c_str ());
             streamer = new FileStreamer (streamer_dest.c_str (), streamer_mods.c_str ());
         }
         if (streamer_type == "streaming_board")
@@ -92,7 +118,7 @@ int Board::prepare_streamer (char *streamer_params)
             catch (const std::exception &e)
             {
                 safe_logger (spdlog::level::err, e.what ());
-                return INVALID_ARGUMENTS_ERROR;
+                return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
             }
             streamer = new MultiCastStreamer (streamer_dest.c_str (), port);
         }
@@ -101,12 +127,12 @@ int Board::prepare_streamer (char *streamer_params)
         {
             safe_logger (
                 spdlog::level::err, "unsupported streamer type {}", streamer_type.c_str ());
-            return INVALID_ARGUMENTS_ERROR;
+            return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
         }
     }
 
     int res = streamer->init_streamer ();
-    if (res != STATUS_OK)
+    if (res != (int)BrainFlowExitCodes::STATUS_OK)
     {
         safe_logger (spdlog::level::err, "failed to init streamer");
         delete streamer;
@@ -122,7 +148,7 @@ int Board::get_current_board_data (int num_samples, double *data_buf, int *retur
     {
         int num_data_channels = -1;
         int res = get_num_rows (board_id, &num_data_channels);
-        if (res != STATUS_OK)
+        if (res != (int)BrainFlowExitCodes::STATUS_OK)
         {
             return res;
         }
@@ -136,11 +162,11 @@ int Board::get_current_board_data (int num_samples, double *data_buf, int *retur
         delete[] buf;
         delete[] ts_buf;
         *returned_samples = num_data_points;
-        return STATUS_OK;
+        return (int)BrainFlowExitCodes::STATUS_OK;
     }
     else
     {
-        return INVALID_ARGUMENTS_ERROR;
+        return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
     }
 }
 
@@ -148,30 +174,30 @@ int Board::get_board_data_count (int *result)
 {
     if (!db)
     {
-        return EMPTY_BUFFER_ERROR;
+        return (int)BrainFlowExitCodes::EMPTY_BUFFER_ERROR;
     }
     if (!result)
     {
-        return INVALID_ARGUMENTS_ERROR;
+        return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
     }
 
     *result = (int)db->get_data_count ();
-    return STATUS_OK;
+    return (int)BrainFlowExitCodes::STATUS_OK;
 }
 
 int Board::get_board_data (int data_count, double *data_buf)
 {
     if (!db)
     {
-        return EMPTY_BUFFER_ERROR;
+        return (int)BrainFlowExitCodes::EMPTY_BUFFER_ERROR;
     }
     if (!data_buf)
     {
-        return INVALID_ARGUMENTS_ERROR;
+        return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
     }
     int num_data_channels = 0;
     int res = get_num_rows (board_id, &num_data_channels);
-    if (res != STATUS_OK)
+    if (res != (int)BrainFlowExitCodes::STATUS_OK)
     {
         return res;
     }
@@ -184,7 +210,7 @@ int Board::get_board_data (int data_count, double *data_buf)
     reshape_data (num_data_points, buf, ts_buf, data_buf);
     delete[] buf;
     delete[] ts_buf;
-    return STATUS_OK;
+    return (int)BrainFlowExitCodes::STATUS_OK;
 }
 
 void Board::reshape_data (

@@ -154,3 +154,45 @@ target_link_libraries (
     ${DataHandlerPath}
     ${BoardControllerPath}
 )
+
+#########################
+## Demo for band power ##
+#########################
+add_executable (
+    band_power
+    src/band_power.cpp
+)
+
+target_include_directories (
+    band_power PUBLIC
+    ${brainflow_INCLUDE_DIRS}
+)
+
+target_link_libraries (
+    band_power PUBLIC
+    # for some systems(ubuntu for example) order matters
+    ${BrainflowPath}
+    ${DataHandlerPath}
+    ${BoardControllerPath}
+)
+
+###############
+## Perf Test ##
+###############
+add_executable (
+    perf_test
+    src/perf_test.cpp
+)
+
+target_include_directories (
+    perf_test PUBLIC
+    ${brainflow_INCLUDE_DIRS}
+)
+
+target_link_libraries (
+    perf_test PUBLIC
+    # for some systems(ubuntu for example) order matters
+    ${BrainflowPath}
+    ${DataHandlerPath}
+    ${BoardControllerPath}
+)

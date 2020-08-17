@@ -11,7 +11,6 @@
 #include <unistd.h>
 #endif
 
-#include "openbci_helpers.h"
 #include "synthetic_board.h"
 #include "timestamp.h"
 
@@ -24,7 +23,7 @@ constexpr int SyntheticBoard::package_size;
 
 
 SyntheticBoard::SyntheticBoard (struct BrainFlowInputParams params)
-    : Board ((int)SYNTHETIC_BOARD, params)
+    : Board ((int)BoardIds::SYNTHETIC_BOARD, params)
 {
     is_streaming = false;
     keep_alive = false;
@@ -43,11 +42,11 @@ int SyntheticBoard::prepare_session ()
     if (initialized)
     {
         safe_logger (spdlog::level::info, "Session is already prepared");
-        return STATUS_OK;
+        return (int)BrainFlowExitCodes::STATUS_OK;
     }
 
     initialized = true;
-    return STATUS_OK;
+    return (int)BrainFlowExitCodes::STATUS_OK;
 }
 
 int SyntheticBoard::start_stream (int buffer_size, char *streamer_params)
@@ -56,12 +55,12 @@ int SyntheticBoard::start_stream (int buffer_size, char *streamer_params)
     if (is_streaming)
     {
         safe_logger (spdlog::level::err, "Streaming thread already running");
-        return STREAM_ALREADY_RUN_ERROR;
+        return (int)BrainFlowExitCodes::STREAM_ALREADY_RUN_ERROR;
     }
     if (buffer_size <= 0 || buffer_size > MAX_CAPTURE_SAMPLES)
     {
         safe_logger (spdlog::level::err, "invalid array size");
-        return INVALID_BUFFER_SIZE_ERROR;
+        return (int)BrainFlowExitCodes::INVALID_BUFFER_SIZE_ERROR;
     }
 
     if (streamer)
@@ -75,7 +74,7 @@ int SyntheticBoard::start_stream (int buffer_size, char *streamer_params)
         db = NULL;
     }
     int res = prepare_streamer (streamer_params);
-    if (res != STATUS_OK)
+    if (res != (int)BrainFlowExitCodes::STATUS_OK)
     {
         return res;
     }
@@ -85,13 +84,13 @@ int SyntheticBoard::start_stream (int buffer_size, char *streamer_params)
         safe_logger (spdlog::level::err, "unable to prepare buffer with size {}", buffer_size);
         delete db;
         db = NULL;
-        return INVALID_BUFFER_SIZE_ERROR;
+        return (int)BrainFlowExitCodes::INVALID_BUFFER_SIZE_ERROR;
     }
 
     keep_alive = true;
     streaming_thread = std::thread ([this] { this->read_thread (); });
     is_streaming = true;
-    return STATUS_OK;
+    return (int)BrainFlowExitCodes::STATUS_OK;
 }
 
 int SyntheticBoard::stop_stream ()
@@ -107,11 +106,11 @@ int SyntheticBoard::stop_stream ()
             delete streamer;
             streamer = NULL;
         }
-        return STATUS_OK;
+        return (int)BrainFlowExitCodes::STATUS_OK;
     }
     else
     {
-        return STREAM_THREAD_IS_NOT_RUNNING;
+        return (int)BrainFlowExitCodes::STREAM_THREAD_IS_NOT_RUNNING;
     }
 }
 
@@ -129,85 +128,74 @@ int SyntheticBoard::release_session ()
         }
         initialized = false;
     }
-    return STATUS_OK;
+    return (int)BrainFlowExitCodes::STATUS_OK;
 }
 
 void SyntheticBoard::read_thread ()
 {
-    // predefined sin wave for exg
     unsigned char counter = 0;
-    constexpr int num_samples = 256;
-    float base_wave[num_samples];
-    double amplitude = 1000.0;
-    double noise = 0.6;
-    double shift = 0.3;
-    for (int i = 0; i < num_samples; i++)
-    {
-        float rads = (float)(M_PI / 180.0f);
-        base_wave[i] = amplitude * sin (1.8f * i * rads + shift);
-    }
-    // random distr for exg noise
+    constexpr int exg_channels = 16;
+    constexpr int imu_channels = 6; // accel + gyro
+    double sin_phase_rad[exg_channels] = {0.0};
+    double package[SyntheticBoard::package_size] = {0.0};
+    int sampling_rate = 250;
+    std::normal_distribution<double> accel_dist (0.0, 0.35);
+    std::normal_distribution<double> temperature_dist (36.0, 0.5);
+    std::normal_distribution<double> dist_mean_thousand (1000.0, 200.0);
+
     uint64_t seed = std::chrono::high_resolution_clock::now ().time_since_epoch ().count ();
     std::mt19937 mt (static_cast<uint32_t> (seed));
-    float max_noise = (noise > 0.001f) ? noise : 0.001f;
-    float range = (amplitude * max_noise) / 2.0f;
-    safe_logger (spdlog::level::info, "noise range is {}:{}", -range, range);
-    safe_logger (spdlog::level::info, "amplitude is {}", amplitude);
-    safe_logger (spdlog::level::info, "shift is {}", shift);
-    std::uniform_real_distribution<float> dist (0 - range, range);
-
-    // get info about synthetic board from json
-    int sampling_rate = 250;
-    int ec = get_sampling_rate (SYNTHETIC_BOARD, &sampling_rate);
-    if (ec != STATUS_OK)
-    {
-        safe_logger (spdlog::level::warn, "failed to get sampling rate from json: {}", ec);
-    }
-
-    double package[SyntheticBoard::package_size] = {0.0};
-    int num_exg_channels = 8;
 
     while (keep_alive)
     {
-        // I thought about reading this info directly from json here and allow users to change
-        // synthetic board via json but I dont see many use cases for it and after all
-        // brainflow_boards.json is implementation detail
         package[0] = (double)counter;
         // exg
-        for (int i = 0; i < num_exg_channels; i++)
+        for (int i = 0; i < exg_channels; i++)
         {
-            package[i + 1] = base_wave[counter] + dist (mt);
+            double amplitude = 10.0 * (i + 1);
+            double noise = 0.1 * (i + 1);
+            double freq = 5.0 * (i + 1);
+            double shift = 0.05 * i;
+            double range = (amplitude * noise) / 2.0;
+            std::uniform_real_distribution<double> dist (0 - range, range);
+            sin_phase_rad[i] += 2.0f * M_PI * freq / (double)sampling_rate;
+            if (sin_phase_rad[i] > 2.0f * M_PI)
+            {
+                sin_phase_rad[i] -= 2.0f * M_PI;
+            }
+            package[i + 1] = (amplitude + dist (mt)) * sqrt (2.0) * sin (sin_phase_rad[i] + shift);
         }
-        // accel
-        package[9] = counter / 255.0;
-        package[10] = counter / 255.0;
-        package[11] = counter / 255.0;
-        // gyro
-        package[12] = 1.0 - counter / 255.0;
-        package[13] = 1.0 - counter / 255.0;
-        package[14] = 1.0 - counter / 255.0;
+        // accel and gyro
+        for (int i = 0; i < imu_channels; i++)
+        {
+            package[i + 1 + exg_channels] = accel_dist (mt);
+        }
         // eda
-        package[15] = amplitude + dist (mt);
+        package[23] = dist_mean_thousand (mt);
         // ppg
-        package[16] = 70 + counter / 5.0;
+        package[24] = 5.0 * dist_mean_thousand (mt);
+        package[25] = 5.0 * dist_mean_thousand (mt);
         // temperature
-        package[17] = 36 + counter / 200.0;
+        package[26] = temperature_dist (mt);
+        // resistance (add just 2 channels)
+        package[27] = dist_mean_thousand (mt);
+        package[28] = dist_mean_thousand (mt);
         // battery
-        package[18] = 100 - counter / 3.0;
+        package[29] = 95.0;
 
         double timestamp = get_timestamp ();
         db->add_data (timestamp, package);
         streamer->stream_data (package, SyntheticBoard::package_size, timestamp);
         counter++;
 #ifdef _WIN32
-        Sleep ((int)(1000 / sampling_rate));
+        Sleep ((int)(1000.0 / sampling_rate));
 #else
-        usleep ((int)(1000000 / sampling_rate));
+        usleep ((int)(1000000.0 / sampling_rate));
 #endif
     }
 }
 
 int SyntheticBoard::config_board (char *config)
 {
-    return validate_config (config);
+    return (int)BrainFlowExitCodes::STATUS_OK;
 }

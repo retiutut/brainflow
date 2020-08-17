@@ -17,11 +17,6 @@
 
 #if defined _WIN32 || defined __APPLE__
 
-#include "cparams.h"
-#include "cscanner.h"
-#include "sdk_error.h"
-#include "stdio.h"
-
 
 constexpr int BrainBit::package_size;
 
@@ -42,12 +37,12 @@ namespace BrainBitCallbacks
 }
 
 
-BrainBit::BrainBit (struct BrainFlowInputParams params) : Board ((int)BRAINBIT_BOARD, params)
+BrainBit::BrainBit (struct BrainFlowInputParams params)
+    : NeuromdBoard ((int)BoardIds::BRAINBIT_BOARD, params)
 {
     is_streaming = false;
     keep_alive = false;
     initialized = false;
-    device = NULL;
     last_battery = -1;
     last_resistance_t4 = 0.0;
     last_resistance_t3 = 0.0;
@@ -71,19 +66,25 @@ int BrainBit::prepare_session ()
     if (initialized)
     {
         safe_logger (spdlog::level::info, "Session is already prepared");
-        return STATUS_OK;
+        return (int)BrainFlowExitCodes::STATUS_OK;
+    }
+    // init all function pointers
+    int res = NeuromdBoard::prepare_session ();
+    if (res != (int)BrainFlowExitCodes::STATUS_OK)
+    {
+        return res;
     }
 
     // try to find device
-    int res = find_device ();
-    if (res != STATUS_OK)
+    res = find_device ();
+    if (res != (int)BrainFlowExitCodes::STATUS_OK)
     {
         free_device ();
         return res;
     }
     // try to connect to device
     res = connect_device ();
-    if (res != STATUS_OK)
+    if (res != (int)BrainFlowExitCodes::STATUS_OK)
     {
         free_device ();
         return res;
@@ -99,7 +100,7 @@ int BrainBit::prepare_session ()
         sdk_last_error_msg (error_msg, 1024);
         safe_logger (spdlog::level::err, "get channels error {}", error_msg);
         free_device ();
-        return GENERAL_ERROR;
+        return (int)BrainFlowExitCodes::GENERAL_ERROR;
     }
 
     // set correct callbacks for channels
@@ -208,25 +209,25 @@ int BrainBit::prepare_session ()
         free_channels ();
         free_device ();
         free_ChannelInfoArray (device_channels);
-        return GENERAL_ERROR;
+        return (int)BrainFlowExitCodes::GENERAL_ERROR;
     }
 
     free_ChannelInfoArray (device_channels);
 
     initialized = true;
 
-    return STATUS_OK;
+    return (int)BrainFlowExitCodes::STATUS_OK;
 }
 
 int BrainBit::config_board (char *config)
 {
     if (device == NULL)
     {
-        return BOARD_NOT_CREATED_ERROR;
+        return (int)BrainFlowExitCodes::BOARD_NOT_CREATED_ERROR;
     }
     if (config == NULL)
     {
-        return INVALID_ARGUMENTS_ERROR;
+        return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
     }
 
     Command cmd = CommandStartSignal;
@@ -260,7 +261,7 @@ int BrainBit::config_board (char *config)
         safe_logger (spdlog::level::err,
             "Invalid value for config, Supported values: CommandStartSignal, CommandStopSignal, "
             "CommandStartResist, CommandStopResist");
-        return INVALID_ARGUMENTS_ERROR;
+        return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
     }
 
     int ec = device_execute (device, cmd);
@@ -269,10 +270,10 @@ int BrainBit::config_board (char *config)
         char error_msg[1024];
         sdk_last_error_msg (error_msg, 1024);
         safe_logger (spdlog::level::err, error_msg);
-        return GENERAL_ERROR;
+        return (int)BrainFlowExitCodes::GENERAL_ERROR;
     }
 
-    return STATUS_OK;
+    return (int)BrainFlowExitCodes::STATUS_OK;
 }
 
 int BrainBit::start_stream (int buffer_size, char *streamer_params)
@@ -280,12 +281,12 @@ int BrainBit::start_stream (int buffer_size, char *streamer_params)
     if (is_streaming)
     {
         safe_logger (spdlog::level::err, "Streaming thread already running");
-        return STREAM_ALREADY_RUN_ERROR;
+        return (int)BrainFlowExitCodes::STREAM_ALREADY_RUN_ERROR;
     }
     if (buffer_size <= 0 || buffer_size > MAX_CAPTURE_SAMPLES)
     {
         safe_logger (spdlog::level::err, "invalid array size");
-        return INVALID_BUFFER_SIZE_ERROR;
+        return (int)BrainFlowExitCodes::INVALID_BUFFER_SIZE_ERROR;
     }
 
     if (db)
@@ -300,7 +301,7 @@ int BrainBit::start_stream (int buffer_size, char *streamer_params)
     }
 
     int res = prepare_streamer (streamer_params);
-    if (res != STATUS_OK)
+    if (res != (int)BrainFlowExitCodes::STATUS_OK)
     {
         return res;
     }
@@ -310,11 +311,11 @@ int BrainBit::start_stream (int buffer_size, char *streamer_params)
         safe_logger (spdlog::level::err, "unable to prepare buffer");
         delete db;
         db = NULL;
-        return INVALID_BUFFER_SIZE_ERROR;
+        return (int)BrainFlowExitCodes::INVALID_BUFFER_SIZE_ERROR;
     }
 
     res = config_board ((char *)"CommandStartSignal");
-    if (res != STATUS_OK)
+    if (res != (int)BrainFlowExitCodes::STATUS_OK)
     {
         return res;
     }
@@ -322,7 +323,7 @@ int BrainBit::start_stream (int buffer_size, char *streamer_params)
     keep_alive = true;
     streaming_thread = std::thread ([this] { this->read_thread (); });
     is_streaming = true;
-    return STATUS_OK;
+    return (int)BrainFlowExitCodes::STATUS_OK;
 }
 
 int BrainBit::stop_stream ()
@@ -342,7 +343,7 @@ int BrainBit::stop_stream ()
     }
     else
     {
-        return STREAM_THREAD_IS_NOT_RUNNING;
+        return (int)BrainFlowExitCodes::STREAM_THREAD_IS_NOT_RUNNING;
     }
 }
 
@@ -357,9 +358,8 @@ int BrainBit::release_session ()
         initialized = false;
         free_listeners ();
         free_channels ();
-        free_device ();
     }
-    return STATUS_OK;
+    return NeuromdBoard::release_session ();
 }
 
 
@@ -449,20 +449,6 @@ void BrainBit::read_thread ()
     }
 }
 
-void BrainBit::free_listener (ListenerHandle lh)
-{
-    if (lh)
-    {
-        // different headers for macos and msvc
-#ifdef _WIN32
-        free_listener_handle (lh);
-#else
-        free_length_listener_handle (lh);
-#endif
-        lh = NULL;
-    }
-}
-
 void BrainBit::free_listeners ()
 {
     free_listener (resistance_listener_t4);
@@ -470,16 +456,6 @@ void BrainBit::free_listeners ()
     free_listener (resistance_listener_o1);
     free_listener (resistance_listener_o2);
     free_listener (battery_listener);
-}
-
-void BrainBit::free_device ()
-{
-    if (device)
-    {
-        device_disconnect (device);
-        device_delete (device);
-        device = NULL;
-    }
 }
 
 void BrainBit::free_channels ()
@@ -504,140 +480,6 @@ void BrainBit::free_channels ()
         AnyChannel_delete ((AnyChannel *)signal_o2);
         signal_o2 = NULL;
     }
-}
-
-int BrainBit::find_device ()
-{
-    if ((params.timeout < 0) || (params.timeout > 600))
-    {
-        safe_logger (spdlog::level::err, "bad value for timeout");
-        return INVALID_ARGUMENTS_ERROR;
-    }
-
-    DeviceEnumerator *enumerator = create_device_enumerator (DeviceTypeBrainbit);
-    if (enumerator == NULL)
-    {
-        char error_msg[1024];
-        sdk_last_error_msg (error_msg, 1024);
-        safe_logger (spdlog::level::err, "create enumerator error {}", error_msg);
-        return BOARD_NOT_READY_ERROR;
-    }
-
-    int timeout = 15;
-    if (params.timeout != 0)
-    {
-        timeout = params.timeout;
-    }
-    safe_logger (spdlog::level::info, "set timeout for device discovery to {}", timeout);
-
-    int sleep_delay = 300;
-    int attempts = (int)(timeout * 1000.0 / sleep_delay);
-    int res = STATUS_OK;
-    DeviceInfo device_info;
-    do
-    {
-        res = find_device_info (enumerator, &device_info);
-        if (res == INVALID_ARGUMENTS_ERROR)
-        {
-            break;
-        }
-        if (res != STATUS_OK)
-        {
-#ifdef _WIN32:
-            Sleep (sleep_delay);
-#else
-            usleep (sleep_delay * 1000);
-#endif
-            continue;
-        }
-
-        break;
-    } while (attempts-- > 0);
-
-    if (res == STATUS_OK)
-    {
-        device = create_Device (enumerator, device_info);
-        if (device == NULL)
-        {
-            char error_msg[1024];
-            sdk_last_error_msg (error_msg, 1024);
-            safe_logger (spdlog::level::err, "create Device error {}", error_msg);
-            res = BOARD_NOT_READY_ERROR;
-        }
-    }
-
-    enumerator_delete (enumerator);
-
-    return res;
-}
-
-int BrainBit::find_device_info (DeviceEnumerator *enumerator, DeviceInfo *out_device_info)
-{
-    DeviceInfoArray device_info_array;
-    long long serial_number = 0;
-    if (!params.other_info.empty ())
-    {
-        try
-        {
-            serial_number = std::stoll (params.other_info);
-        }
-        catch (...)
-        {
-            safe_logger (spdlog::level::err,
-                "You need to provide BrainBit serial number to other_info field!");
-            return INVALID_ARGUMENTS_ERROR;
-        }
-    }
-
-    const int result_code = enumerator_get_device_list (enumerator, &device_info_array);
-    if (result_code != SDK_NO_ERROR)
-    {
-        return GENERAL_ERROR;
-    }
-
-    for (size_t i = 0; i < device_info_array.info_count; ++i)
-    {
-        if ((device_info_array.info_array[i].SerialNumber == serial_number) || (serial_number == 0))
-        {
-            safe_logger (spdlog::level::info, "Found device with ID {}",
-                device_info_array.info_array[i].SerialNumber);
-            *out_device_info = device_info_array.info_array[i];
-            free_DeviceInfoArray (device_info_array);
-            return STATUS_OK;
-        }
-    }
-
-    free_DeviceInfoArray (device_info_array);
-    return BOARD_NOT_READY_ERROR;
-}
-
-int BrainBit::connect_device ()
-{
-    if (device == NULL)
-    {
-        safe_logger (spdlog::level::err, "Device is not created.");
-        return BOARD_NOT_CREATED_ERROR;
-    }
-
-    device_connect (device);
-
-    DeviceState device_state;
-    int return_code = device_read_State (device, &device_state);
-    if (return_code != SDK_NO_ERROR)
-    {
-        char error_msg[1024];
-        sdk_last_error_msg (error_msg, 1024);
-        safe_logger (spdlog::level::err, "device read state error {}", error_msg);
-        return BOARD_NOT_READY_ERROR;
-    }
-
-    if (device_state != DeviceStateConnected)
-    {
-        safe_logger (spdlog::level::err, "Device is not connected.");
-        return BOARD_NOT_READY_ERROR;
-    }
-
-    return STATUS_OK;
 }
 
 void BrainBit::on_battery_charge_received (
@@ -690,7 +532,8 @@ void BrainBit::on_resistance_received (
 
 #else
 
-BrainBit::BrainBit (struct BrainFlowInputParams params) : Board ((int)BRAINBIT_BOARD, params)
+BrainBit::BrainBit (struct BrainFlowInputParams params)
+    : NeuromdBoard ((int)BoardIds::BRAINBIT_BOARD, params)
 {
 }
 
@@ -700,32 +543,32 @@ BrainBit::~BrainBit ()
 
 int BrainBit::prepare_session ()
 {
-    safe_logger (spdlog::level::err, "BrainBit supports only Windows.");
-    return UNSUPPORTED_BOARD_ERROR;
+    safe_logger (spdlog::level::err, "BrainBit doesnt support Linux.");
+    return (int)BrainFlowExitCodes::UNSUPPORTED_BOARD_ERROR;
 }
 
 int BrainBit::config_board (char *config)
 {
-    safe_logger (spdlog::level::err, "BrainBit supports only Windows.");
-    return UNSUPPORTED_BOARD_ERROR;
+    safe_logger (spdlog::level::err, "BrainBit doesnt support Linux.");
+    return (int)BrainFlowExitCodes::UNSUPPORTED_BOARD_ERROR;
 }
 
 int BrainBit::release_session ()
 {
-    safe_logger (spdlog::level::err, "BrainBit supports only Windows.");
-    return UNSUPPORTED_BOARD_ERROR;
+    safe_logger (spdlog::level::err, "BrainBit doesnt support Linux.");
+    return (int)BrainFlowExitCodes::UNSUPPORTED_BOARD_ERROR;
 }
 
 int BrainBit::stop_stream ()
 {
-    safe_logger (spdlog::level::err, "BrainBit supports only Windows.");
-    return UNSUPPORTED_BOARD_ERROR;
+    safe_logger (spdlog::level::err, "BrainBit doesnt support Linux.");
+    return (int)BrainFlowExitCodes::UNSUPPORTED_BOARD_ERROR;
 }
 
 int BrainBit::start_stream (int buffer_size, char *streamer_params)
 {
-    safe_logger (spdlog::level::err, "BrainBit supports only Windows.");
-    return UNSUPPORTED_BOARD_ERROR;
+    safe_logger (spdlog::level::err, "BrainBit doesnt support Linux.");
+    return (int)BrainFlowExitCodes::UNSUPPORTED_BOARD_ERROR;
 }
 
 #endif

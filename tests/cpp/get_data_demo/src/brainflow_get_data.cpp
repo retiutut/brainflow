@@ -52,7 +52,7 @@ int main (int argc, char *argv[])
         board->release_session ();
         // for STREAMING_BOARD you have to query information using board id for master board
         // because for STREAMING_BOARD data format is determined by master board!
-        if (board_id == STREAMING_BOARD)
+        if (board_id == (int)BoardIds::STREAMING_BOARD)
         {
             board_id = std::stoi (params.other_info);
             BoardShim::log_message ((int)LogLevels::LEVEL_INFO, "Use Board Id %d", board_id);
@@ -202,6 +202,19 @@ bool parse_args (int argc, char *argv[], struct BrainFlowInputParams *params, in
             {
                 i++;
                 params->mac_address = std::string (argv[i]);
+            }
+            else
+            {
+                std::cerr << "missed argument" << std::endl;
+                return false;
+            }
+        }
+        if (std::string (argv[i]) == std::string ("--serial-number"))
+        {
+            if (i + 1 < argc)
+            {
+                i++;
+                params->serial_number = std::string (argv[i]);
             }
             else
             {

@@ -7,22 +7,26 @@
 
 #include "board.h"
 #include "board_controller.h"
-#include "socket_client.h"
+#include "socket_client_udp.h"
 
 #define ADS1299_Vref 4.5
-#define ADS1299_gain 24.0
+
 
 class NovaXR : public Board
 {
 
 private:
-    const float eeg_scale = ADS1299_Vref / float((pow (2, 23) - 1)) / ADS1299_gain * 1000000.;
+    // different default gains
+    const double eeg_scale_main_board = ADS1299_Vref / double((pow (2, 23) - 1)) / 8.0 * 1000000.;
+    const double eeg_scale_sister_board =
+        ADS1299_Vref / double((pow (2, 23) - 1)) / 12.0 * 1000000.;
+    const double emg_scale = ADS1299_Vref / double((pow (2, 23) - 1)) / 4.0 * 1000000.;
 
     volatile bool keep_alive;
     bool initialized;
     bool is_streaming;
     std::thread streaming_thread;
-    SocketClient *socket;
+    SocketClientUDP *socket;
 
     std::mutex m;
     std::condition_variable cv;
@@ -43,5 +47,5 @@ public:
     static constexpr int package_size = 72;
     static constexpr int num_packages = 19;
     static constexpr int transaction_size = NovaXR::package_size * NovaXR::num_packages;
-    static constexpr int num_channels = 21;
+    static constexpr int num_channels = 22;
 };
