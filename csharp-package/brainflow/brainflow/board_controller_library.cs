@@ -35,7 +35,10 @@ namespace brainflow
         GENERAL_ERROR = 17,
         SYNC_TIMEOUT_ERROR = 18,
         JSON_NOT_FOUND_ERROR = 19,
-        NO_SUCH_DATA_IN_JSON_ERROR = 20
+        NO_SUCH_DATA_IN_JSON_ERROR = 20,
+        CLASSIFIER_IS_NOT_PREPARED_ERROR = 21,
+        ANOTHER_CLASSIFIER_IS_PREPARED_ERROR = 22,
+        UNSUPPORTED_CLASSIFIER_AND_METRIC_COMBINATION_ERROR = 23
     };
 
     public enum BoardIds
@@ -55,7 +58,8 @@ namespace brainflow
         CALLIBRI_EMG_BOARD = 10,
         CALLIBRI_ECG_BOARD = 11,
         FASCIA_BOARD = 12,
-        NOTION_OSC_BOARD = 13
+        NOTION_1_BOARD = 13,
+        NOTION_2_BOARD = 14
     };
 
 
@@ -125,6 +129,8 @@ namespace brainflow
         public static extern int get_eeg_names(int board_id, byte[] eeg_names, int[] len);
         [DllImport("BoardController.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int get_resistance_channels(int board_id, int[] channels, int[] len);
+        [DllImport ("BoardController.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int get_exg_channels (int board_id, int[] channels, int[] len);
     }
 
     public static class BoardControllerLibrary32
@@ -189,6 +195,8 @@ namespace brainflow
         public static extern int get_eeg_names(int board_id, byte[] eeg_names, int[] len);
         [DllImport("BoardController32.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int get_resistance_channels(int board_id, int[] channels, int[] len);
+        [DllImport ("BoardController32.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int get_exg_channels (int board_id, int[] channels, int[] len);
     }
 
     public static class BoardControllerLibrary
@@ -343,6 +351,14 @@ namespace brainflow
                 return BoardControllerLibrary64.get_eeg_channels (board_id, channels, len);
             else
                 return BoardControllerLibrary32.get_eeg_channels (board_id, channels, len);
+        }
+
+        public static int get_exg_channels (int board_id, int[] channels, int[] len)
+        {
+            if (System.Environment.Is64BitProcess)
+                return BoardControllerLibrary64.get_exg_channels (board_id, channels, len);
+            else
+                return BoardControllerLibrary32.get_exg_channels (board_id, channels, len);
         }
 
         public static int get_emg_channels (int board_id, int[] channels, int[] len)

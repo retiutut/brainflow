@@ -10,10 +10,11 @@
 #include <errno.h>
 #endif
 
-constexpr int NovaXR::transaction_size;
-constexpr int NovaXR::num_packages;
-constexpr int NovaXR::package_size;
 constexpr int NovaXR::num_channels;
+constexpr int NovaXR::package_size;
+constexpr int NovaXR::num_packages;
+constexpr int NovaXR::transaction_size;
+
 
 NovaXR::NovaXR (struct BrainFlowInputParams params) : Board ((int)BoardIds::NOVAXR_BOARD, params)
 {
@@ -66,8 +67,8 @@ int NovaXR::prepare_session ()
         socket = NULL;
         return (int)BrainFlowExitCodes::BOARD_WRITE_ERROR;
     }
-    // force default sampling rate - 500
-    res = config_board ("~5");
+    // force default sampling rate - 250
+    res = config_board ("~6");
     if (res != (int)BrainFlowExitCodes::STATUS_OK)
     {
         safe_logger (spdlog::level::err, "failed to apply defaul sampling rate");
@@ -104,14 +105,28 @@ int NovaXR::config_board (char *config)
     }
     if (!is_streaming)
     {
-        char response = 0;
-        res = socket->recv (&response, 1);
-        if (res != 1)
+        unsigned char b[NovaXR::transaction_size];
+        res = 0;
+        while (res != 1)
         {
-            safe_logger (spdlog::level::err, "failed to recv ack");
-            return (int)BrainFlowExitCodes::BOARD_WRITE_ERROR;
+            res = socket->recv (b, NovaXR::transaction_size);
+            if (res == -1)
+            {
+#ifdef _WIN32
+                safe_logger (
+                    spdlog::level::err, "config_board WSAGetLastError is {}", WSAGetLastError ());
+#else
+                safe_logger (spdlog::level::err, "config_board errno {} message {}", errno,
+                    strerror (errno));
+#endif
+                return (int)BrainFlowExitCodes::BOARD_WRITE_ERROR;
+            }
+            if (res != 1)
+            {
+                safe_logger (spdlog::level::warn, "config_board recv {} bytes instead 1", res);
+            }
         }
-        switch (response)
+        switch (b[0])
         {
             case 'A':
                 return (int)BrainFlowExitCodes::STATUS_OK;
@@ -119,7 +134,7 @@ int NovaXR::config_board (char *config)
                 safe_logger (spdlog::level::err, "invalid command");
                 return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
             default:
-                safe_logger (spdlog::level::err, "unknown char received: {}", response);
+                safe_logger (spdlog::level::err, "unknown char received: {}", b[0]);
                 return (int)BrainFlowExitCodes::GENERAL_ERROR;
         }
     }
@@ -234,6 +249,24 @@ int NovaXR::stop_stream ()
             safe_logger (spdlog::level::err, "Failed to send a command to board");
             return (int)BrainFlowExitCodes::BOARD_WRITE_ERROR;
         }
+
+        // free kernel buffer
+        unsigned char b[NovaXR::transaction_size];
+        res = 0;
+        int max_attempt = 1000; // to dont get to infinite loop
+        int current_attempt = 0;
+        while (res != -1)
+        {
+            res = socket->recv (b, NovaXR::transaction_size);
+            current_attempt++;
+            if (current_attempt == max_attempt)
+            {
+                safe_logger (
+                    spdlog::level::err, "Command 's' was sent but streaming is still running.");
+                return (int)BrainFlowExitCodes::BOARD_WRITE_ERROR;
+            }
+        }
+
         return (int)BrainFlowExitCodes::STATUS_OK;
     }
     else
@@ -265,18 +298,13 @@ void NovaXR::read_thread ()
 {
     int res;
     unsigned char b[NovaXR::transaction_size];
-    long counter = 0;
-    double recv_avg_time = 0;
-    double process_avg_time = 0;
+    for (int i = 0; i < NovaXR::transaction_size; i++)
+    {
+        b[i] = 0;
+    }
     while (keep_alive)
     {
-        auto recv_start_time = std::chrono::high_resolution_clock::now ();
         res = socket->recv (b, NovaXR::transaction_size);
-        auto recv_stop_time = std::chrono::high_resolution_clock::now ();
-        auto recv_duration =
-            std::chrono::duration_cast<std::chrono::microseconds> (recv_stop_time - recv_start_time)
-                .count ();
-
         if (res == -1)
         {
 #ifdef _WIN32
@@ -308,11 +336,10 @@ void NovaXR::read_thread ()
             }
         }
 
-        auto processing_start_time = std::chrono::high_resolution_clock::now ();
         for (int cur_package = 0; cur_package < NovaXR::num_packages; cur_package++)
         {
             double package[NovaXR::num_channels] = {0.};
-            int offset = cur_package * NovaXR::package_size;
+            int offset = cur_package * package_size;
             // package num
             package[0] = (double)b[0 + offset];
             // eeg and emg
@@ -329,7 +356,7 @@ void NovaXR::read_thread ()
                     package[i - 3] =
                         emg_scale * (double)cast_24bit_to_int32 (b + offset + 5 + 3 * (i - 4));
             }
-            int16_t temperature;
+            uint16_t temperature;
             int32_t ppg_ir;
             int32_t ppg_red;
             float eda;
@@ -354,16 +381,5 @@ void NovaXR::read_thread ()
             streamer->stream_data (package, NovaXR::num_channels, timestamp);
             db->add_data (timestamp, package);
         }
-        auto processing_stop_time = std::chrono::high_resolution_clock::now ();
-        auto processing_duration = std::chrono::duration_cast<std::chrono::microseconds> (
-            processing_stop_time - processing_start_time)
-                                       .count ();
-        recv_avg_time += recv_duration / 1000.0;
-        process_avg_time += processing_duration / 1000.0;
-        counter++;
     }
-    recv_avg_time /= counter;
-    process_avg_time /= counter;
-    safe_logger (spdlog::level::trace, "recv avg time in ms {}", recv_avg_time);
-    safe_logger (spdlog::level::trace, "process avg time in ms {}", process_avg_time);
 }
