@@ -174,6 +174,7 @@ set (BOARD_CONTROLLER_SRC
     ${CMAKE_HOME_DIRECTORY}/src/board_controller/board.cpp
     ${CMAKE_HOME_DIRECTORY}/src/board_controller/streaming_board.cpp
     ${CMAKE_HOME_DIRECTORY}/src/board_controller/synthetic_board.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/board_controller/playback_file_board.cpp
     ${CMAKE_HOME_DIRECTORY}/src/board_controller/openbci/novaxr.cpp
     ${CMAKE_HOME_DIRECTORY}/src/board_controller/file_streamer.cpp
     ${CMAKE_HOME_DIRECTORY}/src/board_controller/multicast_streamer.cpp
@@ -186,6 +187,7 @@ set (BOARD_CONTROLLER_SRC
     ${CMAKE_HOME_DIRECTORY}/src/board_controller/neuromd/callibri_emg.cpp
     ${CMAKE_HOME_DIRECTORY}/src/board_controller/mit/fascia.cpp
     ${CMAKE_HOME_DIRECTORY}/src/board_controller/neurosity/notion_osc.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/board_controller/ironbci/ironbci.cpp
 )
 
 set (DATA_HANDLER_SRC
@@ -230,6 +232,7 @@ target_include_directories (
     ${CMAKE_HOME_DIRECTORY}/src/board_controller/mit/inc
     ${CMAKE_HOME_DIRECTORY}/third_party/neurosdk/inc/types
     ${CMAKE_HOME_DIRECTORY}/src/board_controller/neurosity/inc
+    ${CMAKE_HOME_DIRECTORY}/src/board_controller/ironbci/inc
 )
 
 # disable min max defines in windows.h
