@@ -8,12 +8,13 @@ import java.util.Map;
  */
 public enum BoardIds
 {
+    PLAYBACK_FILE_BOARD (-3),
     STREAMING_BOARD (-2),
     SYNTHETIC_BOARD (-1),
     CYTON_BOARD (0),
     GANGLION_BOARD (1),
     CYTON_DAISY_BOARD (2),
-    NOVAXR_BOARD (3),
+    AURAXR_BOARD (3),
     GANGLION_WIFI_BOARD (4),
     CYTON_WIFI_BOARD (5),
     CYTON_DAISY_WIFI_BOARD (6),
@@ -24,7 +25,8 @@ public enum BoardIds
     CALLIBRI_ECG_BOARD (11),
     FASCIA_BOARD (12),
     NOTION_1_BOARD (13),
-    NOTION_2_BOARD (14);
+    NOTION_2_BOARD (14),
+    IRONBCI_BOARD (15);
 
     private final int board_id;
     private static final Map<Integer, BoardIds> bi_map = new HashMap<Integer, BoardIds> ();

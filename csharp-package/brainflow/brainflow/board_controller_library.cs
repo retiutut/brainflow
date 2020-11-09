@@ -43,12 +43,13 @@ namespace brainflow
 
     public enum BoardIds
     {
+        PLAYBACK_FILE_BOARD = -3,
         STREAMING_BOARD = -2,
         SYNTHETIC_BOARD = -1,
         CYTON_BOARD = 0,
         GANGLION_BOARD = 1,
         CYTON_DAISY_BOARD = 2,
-        NOVAXR_BOARD = 3,
+        AURAXR_BOARD = 3,
         GANGLION_WIFI_BOARD = 4,
         CYTON_WIFI_BOARD = 5,
         CYTON_DAISY_WIFI_BOARD = 6,
@@ -59,7 +60,8 @@ namespace brainflow
         CALLIBRI_ECG_BOARD = 11,
         FASCIA_BOARD = 12,
         NOTION_1_BOARD = 13,
-        NOTION_2_BOARD = 14
+        NOTION_2_BOARD = 14,
+        IRONBCI_BOARD = 15
     };
 
 
@@ -88,7 +90,7 @@ namespace brainflow
         [DllImport ("BoardController.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int log_message (int log_level, string message);
         [DllImport ("BoardController.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
-        public static extern int config_board (string config, int board_id, string input_json);
+        public static extern int config_board (string config, byte[] response, int[] len, int board_id, string input_json);
         [DllImport ("BoardController.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int set_log_file (string log_file);
         [DllImport ("BoardController.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
@@ -123,11 +125,11 @@ namespace brainflow
         public static extern int get_other_channels (int board_id, int[] channels, int[] len);
         [DllImport ("BoardController.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int get_temperature_channels (int board_id, int[] channels, int[] len);
-        [DllImport("BoardController.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport ("BoardController.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int is_prepared(int[] prepared, int board_id, string input_json);
-        [DllImport("BoardController.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport ("BoardController.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int get_eeg_names(int board_id, byte[] eeg_names, int[] len);
-        [DllImport("BoardController.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport ("BoardController.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int get_resistance_channels(int board_id, int[] channels, int[] len);
         [DllImport ("BoardController.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int get_exg_channels (int board_id, int[] channels, int[] len);
@@ -154,7 +156,7 @@ namespace brainflow
         [DllImport ("BoardController32.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int log_message (int log_level, string message);
         [DllImport ("BoardController32.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
-        public static extern int config_board (string config, int board_id, string input_json);
+        public static extern int config_board (string config, byte[] response, int[] len, int board_id, string input_json);
         [DllImport ("BoardController32.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int set_log_file (string log_file);
         [DllImport ("BoardController32.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
@@ -189,11 +191,11 @@ namespace brainflow
         public static extern int get_other_channels (int board_id, int[] channels, int[] len);
         [DllImport ("BoardController32.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int get_temperature_channels (int board_id, int[] channels, int[] len);
-        [DllImport("BoardController32.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport ("BoardController32.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int is_prepared(int[] prepared, int board_id, string input_json);
-        [DllImport("BoardController32.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport ("BoardController32.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int get_eeg_names(int board_id, byte[] eeg_names, int[] len);
-        [DllImport("BoardController32.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport ("BoardController32.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int get_resistance_channels(int board_id, int[] channels, int[] len);
         [DllImport ("BoardController32.dll", SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
         public static extern int get_exg_channels (int board_id, int[] channels, int[] len);
@@ -281,12 +283,12 @@ namespace brainflow
                 return BoardControllerLibrary32.log_message (log_level, message);
         }
 
-        public static int config_board (string config, int board_id, string input_json)
+        public static int config_board (string config, byte[] str, int[] len, int board_id, string input_json)
         {
             if (System.Environment.Is64BitProcess)
-                return BoardControllerLibrary64.config_board (config, board_id, input_json);
+                return BoardControllerLibrary64.config_board (config, str, len, board_id, input_json);
             else
-                return BoardControllerLibrary32.config_board (config, board_id, input_json);
+                return BoardControllerLibrary32.config_board (config, str, len, board_id, input_json);
         }
 
         public static int set_log_file (string log_file)

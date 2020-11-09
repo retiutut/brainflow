@@ -251,7 +251,7 @@ classdef BoardShim
             obj.input_params_json = input_params.to_json ();
             obj.board_id = int32 (board_id);
             obj.master_board_id = obj.board_id;
-            if (board_id == int32 (BoardIDs.STREAMING_BOARD))
+            if ((board_id == int32 (BoardIDs.STREAMING_BOARD)) || (board_id == int32 (BoardIDs.PLAYBACK_FILE_BOARD)))
                 double_val = str2double (input_params.other_info);
                 if (isnan(double_val))
                     error("Write master board ID to other_info field");
@@ -267,10 +267,12 @@ classdef BoardShim
             BoardShim.check_ec (exit_code, task_name);
         end
 
-        function config_board (obj, config)
+        function response = config_board (obj, config)
             task_name = 'config_board';
             lib_name = BoardShim.load_lib ();
-            exit_code = calllib (lib_name, task_name, config, obj.board_id, obj.input_params_json);
+            % no way to understand how it works in matlab used this link
+            % https://nl.mathworks.com/matlabcentral/answers/131446-what-data-type-do-i-need-to-calllib-with-pointer-argument-char%
+            [exit_code, tmp, response] = calllib (lib_name, task_name, config, blanks(4096), 4096, obj.board_id, obj.input_params_json);
             BoardShim.check_ec (exit_code, task_name);
         end
 

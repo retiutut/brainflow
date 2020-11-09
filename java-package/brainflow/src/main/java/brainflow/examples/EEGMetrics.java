@@ -22,13 +22,15 @@ public class EEGMetrics
         BrainFlowInputParams params = new BrainFlowInputParams ();
         int board_id = parse_args (args, params);
         BoardShim board_shim = new BoardShim (board_id, params);
-        int sampling_rate = BoardShim.get_sampling_rate (board_id);
-        int[] eeg_channels = BoardShim.get_eeg_channels (board_id);
+        int master_board_id = board_shim.get_board_id ();
+        int sampling_rate = BoardShim.get_sampling_rate (master_board_id);
+        int[] eeg_channels = BoardShim.get_eeg_channels (master_board_id);
 
         board_shim.prepare_session ();
         board_shim.start_stream (3600);
         BoardShim.log_message (LogLevels.LEVEL_INFO.get_code (), "Start sleeping in the main thread");
-        // recommended window size for eeg metric calculation is at least 4 seconds, bigger is better
+        // recommended window size for eeg metric calculation is at least 4 seconds,
+        // bigger is better
         Thread.sleep (5000);
         board_shim.stop_stream ();
         double[][] data = board_shim.get_board_data ();
@@ -80,6 +82,10 @@ public class EEGMetrics
             if (args[i].equals ("--serial-number"))
             {
                 params.serial_number = args[i + 1];
+            }
+            if (args[i].equals ("--file"))
+            {
+                params.file = args[i + 1];
             }
         }
         return board_id;

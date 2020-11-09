@@ -28,6 +28,7 @@ std::string params_to_string (struct BrainFlowInputParams params)
     j["other_info"] = params.other_info;
     j["timeout"] = params.timeout;
     j["serial_number"] = params.serial_number;
+    j["file"] = params.file;
     std::string post_str = j.dump ();
     return post_str;
 }
@@ -158,7 +159,7 @@ int BoardShim::get_board_data_count ()
 double **BoardShim::get_board_data (int *num_data_points)
 {
     int num_samples = get_board_data_count ();
-    int num_data_channels = get_num_rows (get_master_board_id ());
+    int num_data_channels = get_num_rows (get_board_id ());
     double *buf = new double[num_samples * num_data_channels];
     int res = ::get_board_data (
         num_samples, buf, board_id, const_cast<char *> (serialized_params.c_str ()));
@@ -181,7 +182,7 @@ double **BoardShim::get_board_data (int *num_data_points)
 
 double **BoardShim::get_current_board_data (int num_samples, int *num_data_points)
 {
-    int num_data_channels = BoardShim::get_num_rows (get_master_board_id ());
+    int num_data_channels = BoardShim::get_num_rows (get_board_id ());
     double *buf = new double[num_samples * num_data_channels];
     int res = ::get_current_board_data (num_samples, buf, num_data_points, board_id,
         const_cast<char *> (serialized_params.c_str ()));
@@ -202,20 +203,25 @@ double **BoardShim::get_current_board_data (int num_samples, int *num_data_point
     return output_buf;
 }
 
-void BoardShim::config_board (char *config)
+std::string BoardShim::config_board (char *config)
 {
-    int res = ::config_board (config, board_id, const_cast<char *> (serialized_params.c_str ()));
+    int response_len = 0;
+    char response[8192];
+    int res = ::config_board (
+        config, response, &response_len, board_id, const_cast<char *> (serialized_params.c_str ()));
     if (res != (int)BrainFlowExitCodes::STATUS_OK)
     {
         throw BrainFlowException ("failed to config board", res);
     }
+    std::string resp ((const char *)response, response_len);
+    return resp;
 }
 
 // for better user experience and consistency accross bindings we return 2d array from user api, we
 // can not do it directly in low level api because some languages can not pass multidim array to C++
 void BoardShim::reshape_data (int num_data_points, double *linear_buffer, double **output_buf)
 {
-    int num_data_channels = BoardShim::get_num_rows (get_master_board_id ());
+    int num_data_channels = BoardShim::get_num_rows (get_board_id ());
     for (int i = 0; i < num_data_channels; i++)
     {
         memcpy (
@@ -223,10 +229,11 @@ void BoardShim::reshape_data (int num_data_points, double *linear_buffer, double
     }
 }
 
-int BoardShim::get_master_board_id ()
+int BoardShim::get_board_id ()
 {
     int master_board_id = board_id;
-    if (board_id == (int)BoardIds::STREAMING_BOARD)
+    if ((board_id == (int)BoardIds::STREAMING_BOARD) ||
+        (board_id == (int)BoardIds::PLAYBACK_FILE_BOARD))
     {
         try
         {
@@ -234,8 +241,7 @@ int BoardShim::get_master_board_id ()
         }
         catch (const std::exception &e)
         {
-            throw BrainFlowException (
-                "specify master board id for STREAMING_BOARD using params.other_info",
+            throw BrainFlowException ("specify master board id using params.other_info",
                 (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR);
         }
     }

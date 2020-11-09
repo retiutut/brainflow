@@ -18,12 +18,13 @@ from brainflow.exit_codes import BrainflowExitCodes
 class BoardIds (enum.Enum):
     """Enum to store all supported Board Ids"""
 
+    PLAYBACK_FILE_BOARD = -3 #:
     STREAMING_BOARD = -2 #:
     SYNTHETIC_BOARD = -1 #:
     CYTON_BOARD = 0 #:
     GANGLION_BOARD = 1 #:
     CYTON_DAISY_BOARD = 2 #:
-    NOVAXR_BOARD = 3 #:
+    AURAXR_BOARD = 3 #:
     GANGLION_WIFI_BOARD = 4 #:
     CYTON_WIFI_BOARD = 5 #:
     CYTON_DAISY_WIFI_BOARD = 6 #:
@@ -33,8 +34,10 @@ class BoardIds (enum.Enum):
     CALLIBRI_EMG_BOARD = 10 #:
     CALLIBRI_ECG_BOARD = 11 #:
     FASCIA_BOARD = 12 #:
+    NOTION_OSC_BOARD = 13 #:
     NOTION_1_BOARD = 13 #:
     NOTION_2_BOARD = 14 #:
+    IRONBCI_BOARD = 15 #:
 
 
 class LogLevels (enum.Enum):
@@ -72,6 +75,10 @@ class BrainFlowInputParams (object):
     :type ip_protocol: int
     :param other_info: other info
     :type other_info: str
+    :param serial_number: serial number
+    :type serial_number: str
+    :param file: file
+    :type file: str
     """
     def __init__ (self) -> None:
         self.serial_port = ''
@@ -82,6 +89,7 @@ class BrainFlowInputParams (object):
         self.other_info = ''
         self.timeout = 0
         self.serial_number = ''
+        self.file = ''
 
     def to_json (self) -> None :
         return json.dumps (self, default = lambda o: o.__dict__,
@@ -223,6 +231,8 @@ class BoardControllerDLL (object):
         self.config_board.restype = ctypes.c_int
         self.config_board.argtypes = [
             ctypes.c_char_p,
+            ndpointer (ctypes.c_ubyte),
+            ndpointer (ctypes.c_int32),
             ctypes.c_int,
             ctypes.c_char_p
         ]
@@ -390,11 +400,11 @@ class BoardShim (object):
             self.input_json = input_params.to_json ()
         self.board_id = board_id
         # we need it for streaming board
-        if board_id == BoardIds.STREAMING_BOARD.value:
+        if board_id == BoardIds.STREAMING_BOARD.value or board_id == BoardIds.PLAYBACK_FILE_BOARD.value:
             try:
                 self._master_board_id = int (input_params.other_info)
             except:
-                raise BrainFlowError ('set master board id using params.other_info for STREAMING_BOARD',
+                raise BrainFlowError ('set master board id using params.other_info',
                                     BrainflowExitCodes.INVALID_ARGUMENTS_ERROR.value)
         else:
             self._master_board_id = self.board_id
@@ -879,6 +889,15 @@ class BoardShim (object):
         if res != BrainflowExitCodes.STATUS_OK.value:
             raise BrainFlowError ('unable to obtain buffer size', res)
         return data_size[0]
+    
+    def get_board_id (self) -> int:
+        """Get's the actual board id, can be different than provided
+
+        :return: board id
+        :rtype: int
+        """
+        
+        return self._master_board_id
 
     def is_prepared (self) -> bool:
         """Check if session is ready or not
@@ -914,12 +933,17 @@ class BoardShim (object):
 
         :param config: string to send to a board
         :type config: str
+        :return: response string if any
+        :rtype: str
         """
         try:
             config_string = config.encode ()
         except:
             config_string = config
+        string = numpy.zeros (4096).astype (numpy.ubyte)
+        string_len = numpy.zeros (1).astype (numpy.int32)
 
-        res = BoardControllerDLL.get_instance ().config_board (config_string, self.board_id, self.input_json)
+        res = BoardControllerDLL.get_instance ().config_board (config_string, string, string_len, self.board_id, self.input_json)
         if res != BrainflowExitCodes.STATUS_OK.value:
             raise BrainFlowError ('unable to config board', res)
+        return string.tobytes ().decode ('utf-8')[0:string_len[0]]
