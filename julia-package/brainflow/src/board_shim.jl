@@ -12,7 +12,7 @@ AnyIntType = Union{Int8, Int32, Int64, Int128, Int}
     CYTON_BOARD = 0
     GANGLION_BOARD = 1
     CYTON_DAISY_BOARD = 2
-    AURAXR_BOARD = 3
+    GALEA_BOARD = 3
     GANGLION_WIFI_BOARD = 4
     CYTON_WIFI_BOARD = 5
     CYTON_DAISY_WIFI_BOARD = 6
@@ -25,6 +25,7 @@ AnyIntType = Union{Int8, Int32, Int64, Int128, Int}
     NOTION_1_BOARD = 13
     NOTION_2_BOARD = 14
     IRONBCI_BOARD = 15
+    FREEEEG32_BOARD = 17
 
 end
 

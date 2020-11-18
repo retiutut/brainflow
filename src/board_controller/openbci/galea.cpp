@@ -2,37 +2,36 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "auraxr.h"
 #include "custom_cast.h"
+#include "galea.h"
 #include "timestamp.h"
 
 #ifndef _WIN32
 #include <errno.h>
 #endif
 
-constexpr int AuraXR::num_channels;
-constexpr int AuraXR::package_size;
-constexpr int AuraXR::num_packages;
-constexpr int AuraXR::transaction_size;
+constexpr int Galea::num_channels;
+constexpr int Galea::package_size;
+constexpr int Galea::num_packages;
+constexpr int Galea::transaction_size;
 
 
-AuraXR::AuraXR (struct BrainFlowInputParams params) : Board ((int)BoardIds::AURAXR_BOARD, params)
+Galea::Galea (struct BrainFlowInputParams params) : Board ((int)BoardIds::GALEA_BOARD, params)
 {
     this->socket = NULL;
     this->is_streaming = false;
     this->keep_alive = false;
     this->initialized = false;
-    this->start_time = 0.0;
     this->state = (int)BrainFlowExitCodes::SYNC_TIMEOUT_ERROR;
 }
 
-AuraXR::~AuraXR ()
+Galea::~Galea ()
 {
     skip_logs = true;
     release_session ();
 }
 
-int AuraXR::prepare_session ()
+int Galea::prepare_session ()
 {
     if (initialized)
     {
@@ -83,7 +82,7 @@ int AuraXR::prepare_session ()
     return (int)BrainFlowExitCodes::STATUS_OK;
 }
 
-int AuraXR::config_board (std::string conf, std::string &response)
+int Galea::config_board (std::string conf, std::string &response)
 {
     if (socket == NULL)
     {
@@ -91,7 +90,7 @@ int AuraXR::config_board (std::string conf, std::string &response)
         return (int)BrainFlowExitCodes::BOARD_NOT_CREATED_ERROR;
     }
     const char *config = conf.c_str ();
-    safe_logger (spdlog::level::debug, "Trying to config AuraXR with {}", config);
+    safe_logger (spdlog::level::debug, "Trying to config Galea with {}", config);
     int len = strlen (config);
     int res = socket->send (config, len);
     if (len != res)
@@ -111,20 +110,28 @@ int AuraXR::config_board (std::string conf, std::string &response)
     {
         constexpr int max_string_size = 8192;
         char b[max_string_size];
-        res = AuraXR::transaction_size;
-        while (res == AuraXR::transaction_size)
+        res = Galea::transaction_size;
+        int max_attempt = 25; // to dont get to infinite loop
+        int current_attempt = 0;
+        while (res == Galea::transaction_size)
         {
             res = socket->recv (b, max_string_size);
             if (res == -1)
             {
 #ifdef _WIN32
-                safe_logger (
-                    spdlog::level::err, "config_board WSAGetLastError is {}", WSAGetLastError ());
+                safe_logger (spdlog::level::err, "config_board recv ack WSAGetLastError is {}",
+                    WSAGetLastError ());
 #else
-                safe_logger (spdlog::level::err, "config_board errno {} message {}", errno,
+                safe_logger (spdlog::level::err, "config_board recv ack errno {} message {}", errno,
                     strerror (errno));
 #endif
                 return (int)BrainFlowExitCodes::BOARD_WRITE_ERROR;
+            }
+            current_attempt++;
+            if (current_attempt == max_attempt)
+            {
+                safe_logger (spdlog::level::err, "Device is streaming data while it should not!");
+                return (int)BrainFlowExitCodes::STREAM_ALREADY_RUN_ERROR;
             }
         }
         // set response string
@@ -148,7 +155,7 @@ int AuraXR::config_board (std::string conf, std::string &response)
     return (int)BrainFlowExitCodes::STATUS_OK;
 }
 
-int AuraXR::start_stream (int buffer_size, char *streamer_params)
+int Galea::start_stream (int buffer_size, char *streamer_params)
 {
     if (!initialized)
     {
@@ -182,7 +189,7 @@ int AuraXR::start_stream (int buffer_size, char *streamer_params)
     {
         return res;
     }
-    db = new DataBuffer (AuraXR::num_channels, buffer_size);
+    db = new DataBuffer (Galea::num_channels, buffer_size);
     if (!db->is_ready ())
     {
         safe_logger (spdlog::level::err, "unable to prepare buffer");
@@ -206,7 +213,6 @@ int AuraXR::start_stream (int buffer_size, char *streamer_params)
         safe_logger (spdlog::level::err, "Failed to send a command to board");
         return (int)BrainFlowExitCodes::BOARD_WRITE_ERROR;
     }
-    start_time = get_timestamp ();
 
     keep_alive = true;
     streaming_thread = std::thread ([this] { this->read_thread (); });
@@ -228,7 +234,7 @@ int AuraXR::start_stream (int buffer_size, char *streamer_params)
     }
 }
 
-int AuraXR::stop_stream ()
+int Galea::stop_stream ()
 {
     if (is_streaming)
     {
@@ -258,13 +264,13 @@ int AuraXR::stop_stream ()
 
         // free kernel buffer
         socket->set_timeout (2);
-        unsigned char b[AuraXR::transaction_size];
+        unsigned char b[Galea::transaction_size];
         res = 0;
         int max_attempt = 25; // to dont get to infinite loop
         int current_attempt = 0;
         while (res != -1)
         {
-            res = socket->recv (b, AuraXR::transaction_size);
+            res = socket->recv (b, Galea::transaction_size);
             current_attempt++;
             if (current_attempt == max_attempt)
             {
@@ -284,7 +290,7 @@ int AuraXR::stop_stream ()
     }
 }
 
-int AuraXR::release_session ()
+int Galea::release_session ()
 {
     if (initialized)
     {
@@ -303,17 +309,19 @@ int AuraXR::release_session ()
     return (int)BrainFlowExitCodes::STATUS_OK;
 }
 
-void AuraXR::read_thread ()
+void Galea::read_thread ()
 {
     int res;
-    unsigned char b[AuraXR::transaction_size];
-    for (int i = 0; i < AuraXR::transaction_size; i++)
+    unsigned char b[Galea::transaction_size];
+    constexpr int offset_last_package = Galea::package_size * (Galea::num_packages - 1);
+    for (int i = 0; i < Galea::transaction_size; i++)
     {
         b[i] = 0;
     }
     while (keep_alive)
     {
-        res = socket->recv (b, AuraXR::transaction_size);
+        res = socket->recv (b, Galea::transaction_size);
+        double recv_time = get_timestamp ();
         if (res == -1)
         {
 #ifdef _WIN32
@@ -322,15 +330,14 @@ void AuraXR::read_thread ()
             safe_logger (spdlog::level::err, "errno {} message {}", errno, strerror (errno));
 #endif
         }
-        if (res != AuraXR::transaction_size)
+        if (res != Galea::transaction_size)
         {
             safe_logger (spdlog::level::trace, "unable to read {} bytes, read {}",
-                AuraXR::transaction_size, res);
+                Galea::transaction_size, res);
             continue;
         }
         else
         {
-            socket->send ("a", sizeof (char)); // send ack that data received
             // inform main thread that everything is ok and first package was received
             if (this->state != (int)BrainFlowExitCodes::STATUS_OK)
             {
@@ -345,9 +352,9 @@ void AuraXR::read_thread ()
             }
         }
 
-        for (int cur_package = 0; cur_package < AuraXR::num_packages; cur_package++)
+        for (int cur_package = 0; cur_package < Galea::num_packages; cur_package++)
         {
-            double package[AuraXR::num_channels] = {0.};
+            double package[Galea::num_channels] = {0.};
             int offset = cur_package * package_size;
             // package num
             package[0] = (double)b[0 + offset];
@@ -383,11 +390,18 @@ void AuraXR::read_thread ()
             // battery
             package[21] = (double)b[53 + offset];
 
-            double timestamp_device;
-            memcpy (&timestamp_device, b + 64 + offset, 8);
-            timestamp_device /= 1e6; // convert usec to sec
-            double timestamp = timestamp_device + start_time;
-            streamer->stream_data (package, AuraXR::num_channels, timestamp);
+            double timestamp_device_cur;
+            memcpy (&timestamp_device_cur, b + 64 + offset, 8);
+            double timestamp_device_last;
+            memcpy (&timestamp_device_last, b + 64 + offset_last_package, 8);
+            timestamp_device_cur /= 1e6; // convert usec to sec
+            timestamp_device_last /= 1e6;
+            double time_delta = timestamp_device_last - timestamp_device_cur;
+
+            // workaround micros() overflow issue in firmware
+            double timestamp = (time_delta < 0) ? get_timestamp () : recv_time - time_delta;
+
+            streamer->stream_data (package, Galea::num_channels, timestamp);
             db->add_data (timestamp, package);
         }
     }

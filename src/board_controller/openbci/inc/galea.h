@@ -12,7 +12,7 @@
 #define ADS1299_Vref 4.5
 
 
-class AuraXR : public Board
+class Galea : public Board
 {
 
 private:
@@ -31,12 +31,11 @@ private:
     std::mutex m;
     std::condition_variable cv;
     volatile int state;
-    volatile double start_time;
     void read_thread ();
 
 public:
-    AuraXR (struct BrainFlowInputParams params);
-    ~AuraXR ();
+    Galea (struct BrainFlowInputParams params);
+    ~Galea ();
 
     int prepare_session ();
     int start_stream (int buffer_size, char *streamer_params);
