@@ -96,7 +96,7 @@ void Cyton::read_thread ()
         {
             double eeg_scale = (double)(4.5 / float ((pow (2, 23) - 1)) /
                 gain_tracker.get_gain_for_channel (i) * 1000000.);
-            //safe_logger(spdlog::level::info, "GAIN CHECK {} {}", i, gain_tracker.get_gain_for_channel(i));
+            safe_logger(spdlog::level::info, "GAIN CHECK {} {}", i, gain_tracker.get_gain_for_channel(i));
             package[eeg_channels[i]] = eeg_scale * cast_24bit_to_int32 (b + 1 + 3 * i);
         }
         // end byte

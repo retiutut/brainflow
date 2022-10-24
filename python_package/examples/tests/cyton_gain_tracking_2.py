@@ -10,28 +10,30 @@ def main():
     args = parser.parse_args()
     params = BrainFlowInputParams()
     params.serial_port = args.serial_port
-    board_id = BoardIds.CYTON_BOARD
+    board_id = BoardIds.CYTON_DAISY_BOARD
     board_descr = BoardShim.get_board_descr(board_id)
     sampling_rate = BoardShim.get_sampling_rate(board_id)
     eeg_channels = BoardShim.get_eeg_channels(board_id)
     board = BoardShim(board_id, params)
     board.prepare_session()
-    config_string = "x3065000X"
+    config_string = "x3065110X"
     board.config_board(config_string)
+    time.sleep(2)
     board.start_stream()
     time.sleep(5)
     data_old = board.get_board_data()
     board.stop_stream()
     board.release_session()
     board.prepare_session()
-    config_string = "x3005000X"
+    config_string = "x3005110X"
     board.config_board(config_string)
+    time.sleep(2)
     board.start_stream()
     time.sleep(5)
     data_new = board.get_board_data()
     board.stop_stream()
     board.release_session()
-    print(np.mean(data_old[eeg_channels[2]][10:]))
-    print(np.mean(data_new[eeg_channels[2]][10:]))
+    print(np.mean(data_old[eeg_channels[2]][500:]))
+    print(np.mean(data_new[eeg_channels[2]][500:]))
 if __name__ == "__main__":
     main()
