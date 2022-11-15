@@ -16,7 +16,7 @@ def main():
     eeg_channels = BoardShim.get_eeg_channels(board_id)
     board = BoardShim(board_id, params)
     board.prepare_session()
-    config_string = "x3065110X"
+    config_string = "x1060000X"
     board.config_board(config_string)
     time.sleep(2)
     board.start_stream()
@@ -25,7 +25,7 @@ def main():
     board.stop_stream()
     board.release_session()
     board.prepare_session()
-    config_string = "x3005110X"
+    config_string = "x1000000X"
     board.config_board(config_string)
     time.sleep(2)
     board.start_stream()
@@ -33,7 +33,7 @@ def main():
     data_new = board.get_board_data()
     board.stop_stream()
     board.release_session()
-    print(np.mean(data_old[eeg_channels[2]][500:]))
-    print(np.mean(data_new[eeg_channels[2]][500:]))
+    print(np.mean(data_old[eeg_channels[0]][500:]))
+    print(np.mean(data_new[eeg_channels[0]][500:]))
 if __name__ == "__main__":
     main()

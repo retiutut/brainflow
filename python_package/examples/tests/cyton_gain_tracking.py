@@ -17,7 +17,7 @@ def main():
     params.serial_port = args.serial_port
 
     data_streaming_seconds = 5
-    board_id = BoardIds.CYTON_DAISY_BOARD
+    board_id = BoardIds.CYTON_BOARD
     board_descr = BoardShim.get_board_descr(board_id)
     sampling_rate = int(board_descr['sampling_rate'])
     board = BoardShim(board_id, params)
@@ -26,21 +26,22 @@ def main():
 
     channel_chars = ["1", "2", "3", "4", "5", "6", "7", "8", "Q", "W", "E", "R", "T", "Y", "U", "I"]
     gain_chars = ["6", "5", "4", "3", "2", "1", "0"]
-    input_type_char = "5"
+    input_type_char = "0"
     gain_test_all_channels = []
     gain_test_all_channels_mean_old = []
     gain_test_all_channels_mean_new = []
+    gain_test_all_channels_mean_diffs = []
     board.release_all_sessions()
 
     try:
         for channel_index, channel in enumerate(channel_chars):
 
-            if channel_index > 3:
+            if channel_index > 1:
                 break
 
 
             board.prepare_session()
-            config_string = f"x{channel}0{gain_chars[6]}{input_type_char}110X"
+            config_string = f"x{channel}0{gain_chars[6]}{input_type_char}000X"
             resp = board.config_board(config_string)
             print(resp)
             # check that there is a response if streaming is off
@@ -55,7 +56,7 @@ def main():
             time.sleep(2)
 
             board.prepare_session()
-            config_string = f"x{channel}0{gain_chars[0]}{input_type_char}110X"
+            config_string = f"x{channel}0{gain_chars[0]}{input_type_char}000X"
             try:
                 resp = board.config_board(config_string)
                 print(resp)
@@ -73,16 +74,24 @@ def main():
             std_dev_old = DataFilter.calc_stddev(data_old[eeg_channels[channel_index]])
             std_dev_new = DataFilter.calc_stddev(data_new[eeg_channels[channel_index]])
             difference_between_stddevs = std_dev_old - std_dev_new
-
             gain_test_all_channels.append(difference_between_stddevs)
+
+            mean_old = np.mean(data_old[eeg_channels[channel_index]])
+            mean_new = np.mean(data_new[eeg_channels[channel_index]])
             gain_test_all_channels_mean_old.append(np.mean(data_old[eeg_channels[channel_index]]))
             gain_test_all_channels_mean_new.append(np.mean(data_new[eeg_channels[channel_index]]))
+            difference_between_means = mean_old - mean_new
+            gain_test_all_channels_mean_diffs.append(difference_between_means)
             
     finally:
         for index, std_dev_difference in enumerate(gain_test_all_channels):
             print(f"Std Dev Difference in Channel {index} == {std_dev_difference}")
+
         print("Old Means (x24) == " + str(gain_test_all_channels_mean_old))
         print("New Means (x1) == " + str(gain_test_all_channels_mean_new))
+        for index, mean_difference in enumerate(gain_test_all_channels_mean_diffs):
+            print(f"Mean Difference in Channel {index} == {mean_difference}")
+
         if board.is_prepared():
             board.release_session()
             
