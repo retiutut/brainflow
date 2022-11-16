@@ -16,12 +16,11 @@ def main():
     params = BrainFlowInputParams()
     params.serial_port = args.serial_port
 
-    data_streaming_seconds = 5
+    data_streaming_seconds = 3
     board_id = BoardIds.CYTON_BOARD
     board_descr = BoardShim.get_board_descr(board_id)
     sampling_rate = int(board_descr['sampling_rate'])
     board = BoardShim(board_id, params)
-    nfft = DataFilter.get_nearest_power_of_two(sampling_rate)
     eeg_channels = board_descr['eeg_channels']
 
     channel_chars = ["1", "2", "3", "4", "5", "6", "7", "8", "Q", "W", "E", "R", "T", "Y", "U", "I"]
@@ -35,10 +34,8 @@ def main():
 
     try:
         for channel_index, channel in enumerate(channel_chars):
-
             if channel_index > 1:
                 break
-
 
             board.prepare_session()
             config_string = f"x{channel}0{gain_chars[6]}{input_type_char}000X"
