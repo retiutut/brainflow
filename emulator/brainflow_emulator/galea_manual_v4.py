@@ -43,7 +43,7 @@ class GaleaEmulator(object):
         self.start_streaming_time = 0
         self.python_loop_rate_counter = 0
         self.python_loop_rate_timer = time.time()
-        self.debug_mode = True
+        self.debug_mode = False
         self.channel_on_off = [1] * 24
         self.channel_identifiers = array('u', [
             '1', '2', '3', '4', '5', '6', '7', '8',
