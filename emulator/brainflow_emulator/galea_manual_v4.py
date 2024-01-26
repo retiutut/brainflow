@@ -72,6 +72,9 @@ class GaleaEmulator(object):
                     self.process_channel_on_off(msg.decode('utf-8'))
                 elif msg in Message.ack_values.value or msg.decode('utf-8').startswith('z'):
                     self.server_socket.sendto(Message.ack_from_device.value, self.addr)
+                elif msg.decode('utf-8').startswith('FX'):
+                    self.server_socket.sendto(Message.ack_from_device.value, self.addr)
+                    print("Active Electrode Toggle Command: " + msg.decode('utf-8'))
                 elif msg == Message.time_calc_command.value:
                     cur_time = time.time()
                     resp = bytearray(struct.pack('d', (cur_time - start_time) * 1000))
