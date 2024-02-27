@@ -72,6 +72,8 @@ class BoardIds(enum.IntEnum):
     ANT_NEURO_EE_511_BOARD = 51  #:
     FREEEEG128_BOARD = 52  #:
     AAVAA_V3_BOARD = 53 #:
+    EXPLORE_PLUS_8_CHAN_BOARD = 54 #:
+    EXPLORE_PLUS_32_CHAN_BOARD = 55 #:
 
 
 class IpProtocolTypes(enum.IntEnum):
@@ -309,6 +311,15 @@ class BoardControllerDLL(object):
             ctypes.c_char_p,
             ndpointer(ctypes.c_ubyte),
             ndpointer(ctypes.c_int32),
+            ctypes.c_int,
+            ctypes.c_char_p
+        ]
+
+        self.config_board_with_bytes = self.lib.config_board_with_bytes
+        self.config_board_with_bytes.restype = ctypes.c_int
+        self.config_board_with_bytes.argtypes = [
+            ndpointer(ctypes.c_ubyte),
+            ctypes.c_int,
             ctypes.c_int,
             ctypes.c_char_p
         ]
@@ -1360,7 +1371,7 @@ class BoardShim(object):
 
         return data_arr.reshape(package_length, data_size)
 
-    def config_board(self, config) -> None:
+    def config_board(self, config) -> str:
         """Use this method carefully and only if you understand what you are doing, do NOT use it to start or stop streaming
 
         :param config: string to send to a board
@@ -1380,3 +1391,13 @@ class BoardShim(object):
         if res != BrainFlowExitCodes.STATUS_OK.value:
             raise BrainFlowError('unable to config board', res)
         return string.tobytes().decode('utf-8')[0:string_len[0]]
+
+    def config_board_with_bytes(self, bytes_to_send) -> None:
+        """Use this method carefully and only if you understand what you are doing
+    
+        :param bytes_to_send: bytes to send
+        :type config: ndarray astype(numpy.ubyte)
+        """
+        res = BoardControllerDLL.get_instance().config_board_with_bytes(bytes_to_send, len(bytes_to_send), self.board_id, self.input_json)
+        if res != BrainFlowExitCodes.STATUS_OK.value:
+            raise BrainFlowError('unable to config board', res)

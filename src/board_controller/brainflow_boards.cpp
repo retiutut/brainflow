@@ -895,9 +895,9 @@ BrainFlowBoards::BrainFlowBoards()
         {"timestamp_channel", 27},
         {"marker_channel", 28},
         {"num_rows", 29},
-        {"eeg_channels", {7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}}, // to be confirmed
-        {"eeg_names", "FP1,FP2,Fz,Cz,Pz,Oz,P3,P4,O1,O2,X1,X2,X3,X4,X5,X6,X7,X8"}, // to be confirmed
-        {"emg_channels", {1, 2, 3, 4}},
+        {"eeg_channels", {9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}},
+        {"eeg_names", "F1,C3,F2,Cz,C4,Pz,P4,O2,P3,O1,X1,X2,X3,X4,X5,X6"},
+        {"emg_channels", {1, 2, 3, 4, 7, 8}},
         {"eog_channels", {5, 6}},
         {"other_channels", {25, 26}},
     };
@@ -926,9 +926,9 @@ BrainFlowBoards::BrainFlowBoards()
         {"timestamp_channel", 27},
         {"marker_channel", 28},
         {"num_rows", 29},
-        {"eeg_channels", {7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}}, // to be confirmed
-        {"eeg_names", "FP1,FP2,Fz,Cz,Pz,Oz,P3,P4,O1,O2,X1,X2,X3,X4,X5,X6,X7,X8"}, // to be confirmed
-        {"emg_channels", {1, 2, 3, 4}},
+        {"eeg_channels", {9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}},
+        {"eeg_names", "F1,C3,F2,Cz,C4,Pz,P4,O2,P3,O1,X1,X2,X3,X4,X5,X6"},
+        {"emg_channels", {1, 2, 3, 4, 7, 8}},
         {"eog_channels", {5, 6}},
         {"other_channels", {25, 26}},
     };
@@ -1007,6 +1007,80 @@ BrainFlowBoards::BrainFlowBoards()
         {"rotation_channels", {9, 10, 11}},
         {"battery_channel", 12},
         {"other_channels", {13, 14}}
+    };
+    brainflow_boards_json["boards"]["54"]["default"] =
+    {
+        {"name", "ExplorePlus8Channels"},
+        {"sampling_rate", 250},
+        {"timestamp_channel", 10},
+        {"marker_channel", 11},
+        {"package_num_channel", 0},
+        {"num_rows", 12},
+        {"eeg_channels", {1, 2, 3, 4, 5, 6, 7, 8}},
+        {"emg_channels", {1, 2, 3, 4, 5, 6, 7, 8}},
+        {"ecg_channels", {1, 2, 3, 4, 5, 6, 7, 8}},
+        {"other_channels", {9}} // data status
+    };
+    brainflow_boards_json["boards"]["54"]["auxiliary"] =
+    {
+        {"name", "ExplorePlus8Channels"},
+        {"sampling_rate", 20},
+        {"timestamp_channel", 10},
+        {"marker_channel", 11},
+        {"package_num_channel", 0},
+        {"num_rows", 12},
+        {"accel_channels", {1, 2, 3}},
+        {"gyro_channels", {4, 5, 6}},
+        {"magnetometer_channels", {7, 8, 9}}
+    };
+    brainflow_boards_json["boards"]["54"]["ancillary"] =
+    {
+        {"name", "ExplorePlus8Channels"},
+        {"sampling_rate", 1},
+        {"timestamp_channel", 4},
+        {"marker_channel", 5},
+        {"package_num_channel", 0},
+        {"num_rows", 6},
+        {"temperature_channels", {1}},
+        {"battery_channel", 2},
+        {"other_channels", {3}}
+    };
+    brainflow_boards_json["boards"]["55"]["default"] =
+    {
+        {"name", "ExplorePlus32Channels"},
+        {"sampling_rate", 250},
+        {"timestamp_channel", 34},
+        {"marker_channel", 35},
+        {"package_num_channel", 0},
+        {"num_rows", 36},
+        {"eeg_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}},
+        {"emg_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}},
+        {"ecg_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}},
+        {"other_channels", {33}} // data status
+    };
+    brainflow_boards_json["boards"]["55"]["auxiliary"] =
+    {
+        {"name", "ExplorePlus32Channels"},
+        {"sampling_rate", 20},
+        {"timestamp_channel", 10},
+        {"marker_channel", 11},
+        {"package_num_channel", 0},
+        {"num_rows", 12},
+        {"accel_channels", {1, 2, 3}},
+        {"gyro_channels", {4, 5, 6}},
+        {"magnetometer_channels", {7, 8, 9}}
+    };
+    brainflow_boards_json["boards"]["55"]["ancillary"] =
+    {
+        {"name", "ExplorePlus32Channels"},
+        {"sampling_rate", 1},
+        {"timestamp_channel", 4},
+        {"marker_channel", 5},
+        {"package_num_channel", 0},
+        {"num_rows", 6},
+        {"temperature_channels", {1}},
+        {"battery_channel", 2},
+        {"other_channels", {3}}
     };
 }
 

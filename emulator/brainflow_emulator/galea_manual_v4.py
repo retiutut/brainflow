@@ -138,6 +138,7 @@ class GaleaEmulator(object):
                     logging.info('timeout for send')
                 
                 time.sleep(self.transaction_speed)
+                time.sleep(0.001)
 
                 if (self.debug_mode):
                     elapsed_time = (time.time() - self.start_streaming_time)
@@ -187,6 +188,28 @@ class GaleaEmulator(object):
             print('sampling rate is 1000Hz')
         else:
             print('did not recognize sampling rate command')
+
+    def process_channel_on_off(self, msg):
+        if msg.startswith('x'):
+            for channel_id in self.channel_identifiers:
+                channel_num = self.channel_identifiers.index(channel_id)
+                if (msg[1] == channel_id):
+                    if (msg[2] == '0'): # 0 is off (or Power Down), 1 is on
+                        self.channel_on_off[channel_num] = 1
+                        logging.info('channel '+ str(channel_num + 1) + ' is on')
+                    else:
+                        self.channel_on_off[channel_num] = 0
+                        logging.info('channel ' + str(channel_num + 1) + ' is off')
+
+    def process_sampling_rate(self, msg):
+        if (msg[1] == '6'):
+            logging.info('sampling rate is 250Hz')
+        elif (msg[1] == '5'):
+            logging.info('sampling rate is 500Hz')
+        elif (msg[1] == '4'):
+            logging.info('sampling rate is 1000Hz')
+        else:
+            logging.warning(f'did not recognize sampling rate command: {msg}')
 
 def main():
     emulator = GaleaEmulator()

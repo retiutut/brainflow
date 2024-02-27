@@ -271,6 +271,12 @@ int prepare_session (int board_id, const char *json_brainflow_input_params)
         case BoardIds::AAVAA_V3_BOARD:
             board = std::shared_ptr<Board> (new AAVAAv3 (params));
             break;
+        case BoardIds::EXPLORE_PLUS_8_CHAN_BOARD:
+            board = std::shared_ptr<Board> (new Explore (board_id, params));
+            break;
+        case BoardIds::EXPLORE_PLUS_32_CHAN_BOARD:
+            board = std::shared_ptr<Board> (new Explore (board_id, params));
+            break;
         default:
             return (int)BrainFlowExitCodes::UNSUPPORTED_BOARD_ERROR;
     }
@@ -474,6 +480,25 @@ int config_board (const char *config, char *response, int *response_len, int boa
         strcpy (response, resp.c_str ());
     }
     return res;
+}
+
+int config_board_with_bytes (
+    const char *bytes, int len, int board_id, const char *json_brainflow_input_params)
+{
+    std::lock_guard<std::mutex> lock (mutex);
+    if ((bytes == NULL) || (len < 1))
+    {
+        return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
+    }
+
+    std::pair<int, struct BrainFlowInputParams> key;
+    int res = check_board_session (board_id, json_brainflow_input_params, key, false);
+    if (res != (int)BrainFlowExitCodes::STATUS_OK)
+    {
+        return res;
+    }
+    auto board_it = boards.find (key);
+    return board_it->second->config_board_with_bytes (bytes, len);
 }
 
 int add_streamer (

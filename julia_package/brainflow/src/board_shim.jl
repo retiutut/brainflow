@@ -58,6 +58,8 @@ export BrainFlowInputParams
     ANT_NEURO_EE_511_BOARD = 51
     FREEEEG128_BOARD = 52
     AAVAA_V3_BOARD = 53
+    EXPLORE_PLUS_8_CHAN_BOARD = 54
+    EXPLORE_PLUS_32_CHAN_BOARD = 55
 
 end
 
@@ -285,6 +287,11 @@ end
             config, resp_string, len, board_shim.board_id, board_shim.input_json)
     sub_string = String(resp_string)[1:len[1]]
     return sub_string
+end
+
+@brainflow_rethrow function config_board_with_bytes(bytes::Vector{Cuchar}, len::Integer, board_shim::BoardShim)
+    ccall((:config_board_with_bytes, BOARD_CONTROLLER_INTERFACE), Cint, (Ptr{UInt8}, Cint, Cint, Ptr{UInt8}),
+            bytes, len, board_shim.board_id, board_shim.input_json)
 end
 
 @brainflow_rethrow function get_board_data(num_samples::Integer, board_shim::BoardShim, preset::PresetType=Integer(DEFAULT_PRESET))
